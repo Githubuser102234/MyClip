@@ -536,11 +536,11 @@
 
     </main>
 
-    <script>
+    <script defer>
         document.addEventListener('DOMContentLoaded', () => {
-            // Supabase Client Initialization (MOVED INSIDE DOMContentLoaded)
+            // Supabase Client Initialization
             const SUPABASE_URL = 'https://ebpgktodtwqnnpzagqvp.supabase.co'; // Replace with your Supabase Project URL
-            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVicGdrdG9kdHdxbm5wemFncXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM3OTc5ODgsImV4cCI6MjA2OTM3Mzk4OH0.G54yMXsd8El-QOTbxdc1g8LWsPihfVLC-XgcRKizy1w'; // Replace with your Supabase Anon Key
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVicGdrdG9kdHdxbm5wemFncXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM3OTc5ODgsImexNCI6MjA2OTM3Mzk4OH0.G54yMXsd8El-QOTbxdc1g8LWsPihfVLC-XgcRKizy1w'; // Replace with your Supabase Anon Key
 
             const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -987,4 +987,3 @@
     </script>
 </body>
 </html>
-
