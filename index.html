@@ -537,10 +537,8 @@
     </main>
 
     <script>
-        // *** CRITICAL FIX: Wrap all JavaScript in DOMContentLoaded ***
-        // This ensures all HTML elements are loaded before the script tries to access them.
         document.addEventListener('DOMContentLoaded', () => {
-            // Supabase Client Initialization
+            // Supabase Client Initialization (MOVED INSIDE DOMContentLoaded)
             const SUPABASE_URL = 'https://ebpgktodtwqnnpzagqvp.supabase.co'; // Replace with your Supabase Project URL
             const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVicGdrdG9kdHdxbm5wemFncXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM3OTc5ODgsImV4cCI6MjA2OTM3Mzk4OH0.G54yMXsd8El-QOTbxdc1g8LWsPihfVLC-XgcRKizy1w'; // Replace with your Supabase Anon Key
 
@@ -914,7 +912,6 @@
 
             // --- Event Listeners ---
 
-            // Fix: Make login/signup buttons show the modal correctly
             signupBtn.addEventListener('click', () => {
                 authModal.style.display = 'flex'; // Show the modal
                 signupForm.style.display = 'flex'; // Show signup form
@@ -986,7 +983,7 @@
             supabase.auth.getSession().then(() => {
                 renderContentBasedOnHash();
             });
-        }); // *** End of DOMContentLoaded listener ***
+        }); // End of DOMContentLoaded listener
     </script>
 </body>
 </html>
