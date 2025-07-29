@@ -37,6 +37,7 @@
             font-size: 1.8em;
             font-weight: bold;
             color: #fe2c55; /* TikTok red */
+            cursor: pointer; /* Make logo clickable to go home */
         }
 
         .auth-button {
@@ -210,11 +211,21 @@
             flex-grow: 1;
         }
 
+        .video-title, .video-description, .video-uploader {
+            display: block; /* Make sure these links take full width */
+            text-decoration: none;
+            color: inherit;
+        }
+
         .video-title {
             font-size: 1.2em;
             font-weight: bold;
             color: #333;
             margin-bottom: 5px;
+        }
+
+        .video-title:hover {
+            color: #fe2c55; /* Highlight on hover */
         }
 
         .video-description {
@@ -223,10 +234,19 @@
             margin-bottom: 10px;
         }
 
+        .video-description:hover {
+            color: #fe2c55; /* Highlight on hover */
+        }
+
         .video-uploader {
             font-size: 0.85em;
             color: #888;
         }
+
+        .video-uploader:hover {
+            color: #fe2c55; /* Highlight on hover */
+        }
+
 
         .video-actions {
             display: flex;
@@ -325,12 +345,134 @@
             color: #666;
             font-size: 1.2em;
         }
+
+        /* Single Video View & Profile View Styles */
+        .single-video-view, .profile-view {
+            max-width: 600px;
+            width: 100%;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .single-video-view h2, .profile-view h2 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .single-video-player-container {
+            width: 100%;
+            aspect-ratio: 9 / 16; /* Portrait aspect ratio for videos */
+            background-color: black;
+            margin-bottom: 20px;
+        }
+
+        .single-video-player {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .single-video-details {
+            padding: 0 10px;
+        }
+        .single-video-details .title {
+            font-size: 1.8em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .single-video-details .description {
+            font-size: 1.1em;
+            color: #555;
+            margin-bottom: 15px;
+        }
+        .single-video-details .uploader {
+            font-size: 1em;
+            color: #777;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .profile-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .profile-header .username {
+            font-size: 2em;
+            font-weight: bold;
+            color: #fe2c55;
+        }
+        .profile-header .joined-date {
+            font-size: 0.9em;
+            color: #888;
+        }
+
+        .profile-videos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .profile-video-thumbnail {
+            background-color: black;
+            aspect-ratio: 9 / 16;
+            border-radius: 4px;
+            overflow: hidden;
+            cursor: pointer;
+            position: relative;
+        }
+        .profile-video-thumbnail video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .profile-video-thumbnail:hover video {
+            transform: scale(1.05);
+            transition: transform 0.2s ease;
+        }
+        .profile-video-thumbnail::after {
+            content: attr(data-title);
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            padding: 5px;
+            font-size: 0.8em;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .back-to-feed {
+            background-color: #555;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 20px;
+            display: block; /* Make it take full width of parent */
+            width: fit-content;
+            margin: 20px auto; /* Center the button */
+        }
+        .back-to-feed:hover {
+            background-color: #333;
+        }
+
     </style>
 </head>
 <body>
     <header>
         <nav>
-            <div class="logo">MyClip</div>
+            <div class="logo" id="home-logo">MyClip</div>
             <div class="auth-buttons">
                 <button id="signup-btn" class="auth-button">Sign Up</button>
                 <button id="login-btn" class="auth-button">Log In</button>
@@ -367,6 +509,13 @@
         <section id="video-feed" class="video-feed" style="display: none;">
             </section>
 
+        <section id="single-video-view" class="single-video-view" style="display: none;">
+            </section>
+
+        <section id="profile-view" class="profile-view" style="display: none;">
+            </section>
+
+
         <section id="upload-section" class="upload-section" style="display: none;">
             <h2>Upload a New Clip</h2>
             <form id="upload-form">
@@ -388,13 +537,14 @@
     </main>
 
     <script>
-        // Supabase Client Initialization (script.js content)
+        // Supabase Client Initialization
         const SUPABASE_URL = 'https://ebpgktodtwqnnpzagqvp.supabase.co'; // Replace with your Supabase Project URL
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVicGdrdG9kdHdxbm5wemFncXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM3OTc5ODgsImV4cCI6MjA2OTM3Mzk4OH0.G54yMXsd8El-QOTbxdc1g8LWsPihfVLC-XgcRKizy1w'; //  Replace with your Supabase Anon Key
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVicGdrdG9kdHdxbm5wemFncXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM3OTc5ODgsImV4cCI6MjA2OTM3Mzk4OH0.G54yMXsd8El-QOTbxdc1g8LWsPihfVLC-XgcRKizy1w'; // Replace with your Supabase Anon Key
 
         const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // DOM Elements
+        const homeLogo = document.getElementById('home-logo');
         const authModal = document.getElementById('auth-modal');
         const closeButton = document.querySelector('.close-button');
         const signupBtn = document.getElementById('signup-btn');
@@ -405,7 +555,10 @@
         const loginForm = document.getElementById('login-form');
         const showLoginLink = document.getElementById('show-login');
         const showSignupLink = document.getElementById('show-signup');
+
         const videoFeed = document.getElementById('video-feed');
+        const singleVideoView = document.getElementById('single-video-view');
+        const profileView = document.getElementById('profile-view');
         const uploadSection = document.getElementById('upload-section');
         const uploadForm = document.getElementById('upload-form');
         const videoFileInput = document.getElementById('video-file-input');
@@ -416,6 +569,22 @@
         const loadingVideosMessage = document.getElementById('loading-videos');
 
         let currentUser = null; // To store current logged-in user
+
+        // --- Utility Functions for UI Display ---
+        function hideAllContentSections() {
+            videoFeed.style.display = 'none';
+            singleVideoView.style.display = 'none';
+            profileView.style.display = 'none';
+            uploadSection.style.display = 'none';
+            noVideosMessage.style.display = 'none';
+            loadingVideosMessage.style.display = 'none';
+        }
+
+        function showMessage(element, message) {
+            hideAllContentSections();
+            element.textContent = message;
+            element.style.display = 'block';
+        }
 
         // --- Supabase Authentication Functions ---
 
@@ -432,6 +601,7 @@
                 alert('Signed up successfully! Please check your email to confirm your account.');
                 console.log('Sign up data:', data);
                 authModal.style.display = 'none'; // Close modal on success
+                // No need to call updateUIForAuth directly as the onAuthStateChange listener will handle it
             }
         }
 
@@ -447,7 +617,7 @@
             } else {
                 alert('Logged in successfully!');
                 console.log('Login data:', data);
-                updateUIForAuth(data.user); // Update UI based on logged in user
+                // No need to call updateUIForAuth directly as the onAuthStateChange listener will handle it
                 authModal.style.display = 'none'; // Close modal
             }
         }
@@ -459,14 +629,12 @@
                 console.error('Logout error:', error);
             } else {
                 alert('Logged out successfully!');
-                updateUIForAuth(null); // Reset UI
-                videoFeed.innerHTML = ''; // Clear videos
-                videoFeed.style.display = 'none';
-                noVideosMessage.style.display = 'block';
+                // No need to call updateUIForAuth directly as the onAuthStateChange listener will handle it
+                window.location.hash = ''; // Go back to home page
             }
         }
 
-        // --- UI Management ---
+        // --- UI Management based on Auth State ---
 
         function updateUIForAuth(user) {
             currentUser = user;
@@ -476,58 +644,50 @@
                 logoutBtn.style.display = 'block';
                 userInfoSpan.style.display = 'inline';
                 userInfoSpan.textContent = `Welcome, ${user.email || 'User'}!`;
-                uploadSection.style.display = 'block';
-                loadVideos(); // Load videos if logged in
+                uploadSection.style.display = 'block'; // Show upload section for logged-in users
             } else {
                 signupBtn.style.display = 'block';
                 loginBtn.style.display = 'block';
                 logoutBtn.style.display = 'none';
                 userInfoSpan.style.display = 'none';
                 userInfoSpan.textContent = '';
-                uploadSection.style.display = 'none';
-                videoFeed.style.display = 'none';
-                noVideosMessage.style.display = 'block';
+                uploadSection.style.display = 'none'; // Hide upload section for logged-out users
             }
+            renderContentBasedOnHash(); // Always re-render content based on hash after auth state change
         }
 
-        // Check auth state on page load
+        // Check auth state on page load and whenever it changes
         supabase.auth.onAuthStateChange((event, session) => {
             console.log('Auth state changed:', event, session);
             updateUIForAuth(session?.user || null);
         });
 
-        // --- Video Functions ---
+        // --- Video Functions (Loading & Displaying) ---
 
         async function loadVideos() {
-            videoFeed.innerHTML = ''; // Clear existing videos
-            noVideosMessage.style.display = 'none';
-            loadingVideosMessage.style.display = 'block';
-            videoFeed.style.display = 'none'; // Hide feed until loaded
+            hideAllContentSections();
+            showMessage(loadingVideosMessage, 'Loading clips...');
 
             const { data: videos, error } = await supabase
                 .from('videos')
                 .select(`
                     *,
                     profiles (username)
-                `) // Select all from videos and username from profiles table via foreign key
+                `)
                 .order('created_at', { ascending: false });
-
-            loadingVideosMessage.style.display = 'none';
 
             if (error) {
                 console.error('Error loading videos:', error);
-                alert('Failed to load videos.');
-                noVideosMessage.style.display = 'block';
+                showMessage(noVideosMessage, 'Failed to load videos.');
             } else {
+                videoFeed.innerHTML = ''; // Clear existing videos
                 if (videos.length === 0) {
-                    noVideosMessage.style.display = 'block';
-                    videoFeed.style.display = 'none';
+                    showMessage(noVideosMessage, 'No clips yet! Be the first to upload.');
                 } else {
-                    noVideosMessage.style.display = 'none';
-                    videoFeed.style.display = 'flex';
                     videos.forEach(video => {
                         createVideoCard(video);
                     });
+                    videoFeed.style.display = 'flex'; // Show the video feed
                 }
             }
         }
@@ -544,9 +704,9 @@
                 </div>
                 <div class="video-info">
                     <div class="video-details">
-                        <div class="video-title">${video.title}</div>
-                        <div class="video-description">${video.description || ''}</div>
-                        <div class="video-uploader">@${uploaderUsername}</div>
+                        <a href="#video-${video.id}" class="video-title">${video.title}</a>
+                        <a href="#video-${video.id}" class="video-description">${video.description || ''}</a>
+                        <a href="#profile-${video.user_id}" class="video-uploader">@${uploaderUsername}</a>
                     </div>
                     <div class="video-actions">
                         <button class="action-btn like-btn" data-video-id="${video.id}">❤️<span>${video.likes || 0}</span></button>
@@ -579,7 +739,7 @@
                 // For now, it's just a visual change:
                 let currentLikes = parseInt(likeBtn.querySelector('span').textContent);
                 likeBtn.querySelector('span').textContent = currentLikes + 1;
-                alert(`You liked "${video.title}"! (Requires backend update to persist)`);
+                // In a real app, you'd send this to Supabase and update the displayed count
             });
         }
 
@@ -630,24 +790,137 @@
                 uploadStatus.textContent = 'Video uploaded and saved successfully!';
                 console.log('Video saved:', videoInsertData);
                 uploadForm.reset(); // Clear form
-                loadVideos(); // Reload videos to show the new one
+                window.location.hash = ''; // Go back to the main feed to see new video
             }
             uploadForm.querySelector('button[type="submit"]').disabled = false;
+        }
+
+        // --- Hash-based Navigation & Content Rendering ---
+
+        async function renderContentBasedOnHash() {
+            const hash = window.location.hash;
+            if (hash.startsWith('#video-')) {
+                const videoId = hash.substring(7); // Get the ID after #video-
+                await renderVideoPage(videoId);
+            } else if (hash.startsWith('#profile-')) {
+                const userId = hash.substring(9); // Get the ID after #profile-
+                await renderProfilePage(userId);
+            } else {
+                // Default view: main video feed
+                await loadVideos();
+            }
+            // Ensure upload section visibility is handled by updateUIForAuth
+        }
+
+        async function renderVideoPage(videoId) {
+            hideAllContentSections();
+            showMessage(loadingVideosMessage, 'Loading video...');
+
+            const { data: video, error } = await supabase
+                .from('videos')
+                .select(`
+                    *,
+                    profiles (username)
+                `)
+                .eq('id', videoId)
+                .single(); // Use .single() as we expect only one video
+
+            if (error || !video) {
+                console.error('Error loading single video:', error || 'Video not found');
+                showMessage(noVideosMessage, 'Video not found or an error occurred.');
+                singleVideoView.innerHTML = `<button class="back-to-feed" onclick="window.location.hash=''">Back to Feed</button>`;
+                singleVideoView.style.display = 'block';
+            } else {
+                const uploaderUsername = video.profiles ? video.profiles.username : 'Unknown User';
+                singleVideoView.innerHTML = `
+                    <button class="back-to-feed" onclick="window.location.hash=''">Back to Feed</button>
+                    <div class="single-video-player-container">
+                        <video class="single-video-player" src="${SUPABASE_URL}/storage/v1/object/public/videos/${video.file_path}" controls autoplay loop preload="auto"></video>
+                    </div>
+                    <div class="single-video-details">
+                        <div class="title">${video.title}</div>
+                        <div class="description">${video.description || ''}</div>
+                        <a href="#profile-${video.user_id}" class="uploader">@${uploaderUsername}</a>
+                        </div>
+                `;
+                singleVideoView.style.display = 'block';
+            }
+        }
+
+        async function renderProfilePage(userId) {
+            hideAllContentSections();
+            showMessage(loadingVideosMessage, 'Loading profile...');
+
+            // Fetch profile details
+            const { data: profile, error: profileError } = await supabase
+                .from('profiles')
+                .select('username, created_at')
+                .eq('id', userId)
+                .single();
+
+            if (profileError || !profile) {
+                console.error('Error loading profile:', profileError || 'Profile not found');
+                showMessage(noVideosMessage, 'Profile not found or an error occurred.');
+                profileView.innerHTML = `<button class="back-to-feed" onclick="window.location.hash=''">Back to Feed</button>`;
+                profileView.style.display = 'block';
+                return;
+            }
+
+            // Fetch user's videos
+            const { data: userVideos, error: videosError } = await supabase
+                .from('videos')
+                .select(`
+                    id,
+                    title,
+                    file_path
+                `)
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false });
+
+            if (videosError) {
+                console.error('Error loading user videos:', videosError);
+                showMessage(noVideosMessage, 'Could not load videos for this profile.');
+                profileView.innerHTML = `<button class="back-to-feed" onclick="window.location.hash=''">Back to Feed</button>`;
+                profileView.style.display = 'block';
+                return;
+            }
+
+            profileView.innerHTML = `
+                <button class="back-to-feed" onclick="window.location.hash=''">Back to Feed</button>
+                <div class="profile-header">
+                    <div class="username">@${profile.username}</div>
+                    <div class="joined-date">Joined: ${new Date(profile.created_at).toLocaleDateString()}</div>
+                </div>
+                <h3>Videos by ${profile.username}:</h3>
+                <div class="profile-videos-grid">
+                    ${userVideos.length > 0 ? userVideos.map(video => `
+                        <a href="#video-${video.id}" class="profile-video-thumbnail" data-title="${video.title}">
+                            <video src="${SUPABASE_URL}/storage/v1/object/public/videos/${video.file_path}" muted preload="metadata"></video>
+                        </a>
+                    `).join('') : '<p>No videos uploaded yet.</p>'}
+                </div>
+            `;
+            profileView.style.display = 'block';
+
+            // Pause videos when navigating away from single video view
+            // No need to explicitly pause here as intersection observer handles it for main feed.
+            // For profile thumbnails, `preload="metadata"` means they won't fully load unless played.
         }
 
 
         // --- Event Listeners ---
 
+        // Fix: Make login/signup buttons show the modal correctly
         signupBtn.addEventListener('click', () => {
-            authModal.style.display = 'flex';
-            signupForm.style.display = 'flex';
-            loginForm.style.display = 'none';
+            authModal.style.display = 'flex'; // Show the modal
+            signupForm.style.display = 'flex'; // Show signup form
+            loginForm.style.display = 'none'; // Hide login form
         });
 
         loginBtn.addEventListener('click', () => {
-            authModal.style.display = 'flex';
-            loginForm.style.display = 'flex';
-            signupForm.style.display = 'none';
+            authModal.style.display = 'flex'; // Show the modal
+            loginForm.style.display = 'flex'; // Show login form
+            signupForm.style.display = 'none'; // Hide signup form
         });
 
         logoutBtn.addEventListener('click', signOut);
@@ -656,6 +929,7 @@
             authModal.style.display = 'none';
         });
 
+        // Toggle between login/signup forms within the modal
         showLoginLink.addEventListener('click', (e) => {
             e.preventDefault();
             signupForm.style.display = 'none';
@@ -668,6 +942,7 @@
             signupForm.style.display = 'flex';
         });
 
+        // Handle form submissions
         signupForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const email = document.getElementById('signup-email').value;
@@ -694,9 +969,19 @@
             }
         });
 
-        // Initialize UI on page load
-        // This will trigger the onAuthStateChange listener
-        supabase.auth.getSession();
+        // Event listener for hash changes
+        window.addEventListener('hashchange', renderContentBasedOnHash);
+
+        // Click handler for the logo to go back to the main feed
+        homeLogo.addEventListener('click', () => {
+            window.location.hash = ''; // Set hash to empty to trigger main feed load
+        });
+
+        // Initial render based on current hash or default to main feed
+        // This will also trigger the onAuthStateChange listener on page load
+        supabase.auth.getSession().then(() => {
+            renderContentBasedOnHash();
+        });
     </script>
 </body>
 </html>
