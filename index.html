@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyClip - Short Video Fun</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* Basic CSS (`style.css` content) */
+        body {
+            font-family: -apple-system, BlinkMacMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: #fff;
+            padding: 15px 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            z-index: 10; /* Ensure header is above other content */
+            position: sticky;
+            top: 0;
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #fe2c55; /* TikTok red */
+        }
+
+        .auth-button {
+            background-color: #fe2c55;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            margin-left: 10px;
+            transition: background-color 0.2s ease;
+        }
+
+        .auth-button:hover {
+            background-color: #e6244e;
+        }
+
+        #user-info {
+            font-weight: bold;
+            margin-left: 10px;
+            color: #333;
+        }
+
+        .container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box; /* Include padding in element's total width and height */
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1000; /* Sit on top of everything */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.6); /* Black w/ opacity */
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: #fff;
+            margin: auto;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            width: 90%;
+            max-width: 400px;
+            position: relative;
+            text-align: center;
+        }
+
+        .close-button {
+            color: #aaa;
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .auth-form h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .auth-form input[type="email"],
+        .auth-form input[type="password"] {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1em;
+            width: calc(100% - 24px); /* Account for padding */
+        }
+
+        .auth-form button[type="submit"] {
+            background-color: #25d366; /* WhatsApp green */
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: bold;
+            transition: background-color 0.2s ease;
+        }
+
+        .auth-form button[type="submit"]:hover {
+            background-color: #1fad57;
+        }
+
+        .auth-switch {
+            font-size: 0.9em;
+            color: #555;
+            margin-top: 15px;
+        }
+
+        .auth-switch a {
+            color: #fe2c55;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .auth-switch a:hover {
+            text-decoration: underline;
+        }
+
+        /* Video Feed Styles */
+        .video-feed {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-width: 500px; /* Adjust as needed */
+            width: 100%;
+            padding: 20px 0;
+        }
+
+        .video-card {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .video-player-container {
+            width: 100%;
+            aspect-ratio: 9 / 16; /* Portrait aspect ratio for videos */
+            background-color: black;
+            position: relative;
+        }
+
+        .video-player {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Ensure video fits within container */
+            display: block;
+        }
+
+        .video-info {
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 15px;
+        }
+
+        .video-details {
+            flex-grow: 1;
+        }
+
+        .video-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .video-description {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .video-uploader {
+            font-size: 0.85em;
+            color: #888;
+        }
+
+        .video-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            color: #555;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            transition: color 0.2s ease;
+        }
+
+        .action-btn:hover {
+            color: #fe2c55;
+        }
+
+        .action-btn span {
+            font-size: 0.7em;
+            font-weight: bold;
+        }
+
+        /* Upload Section Styles */
+        .upload-section {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 500px;
+            margin-top: 20px;
+            box-sizing: border-box;
+        }
+
+        .upload-section h2 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 25px;
+        }
+
+        .upload-section form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .upload-section input[type="file"],
+        .upload-section input[type="text"],
+        .upload-section textarea {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1em;
+            width: calc(100% - 24px); /* Account for padding */
+        }
+
+        .upload-section textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .upload-section button[type="submit"] {
+            background-color: #00b894; /* Green-ish */
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: bold;
+            transition: background-color 0.2s ease;
+        }
+
+        .upload-section button[type="submit"]:hover {
+            background-color: #00a880;
+        }
+
+        #upload-status {
+            margin-top: 15px;
+            text-align: center;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .message-section {
+            text-align: center;
+            padding: 50px;
+            color: #666;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">MyClip</div>
+            <div class="auth-buttons">
+                <button id="signup-btn" class="auth-button">Sign Up</button>
+                <button id="login-btn" class="auth-button">Log In</button>
+                <button id="logout-btn" class="auth-button" style="display: none;">Log Out</button>
+                <span id="user-info" style="display: none;"></span>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container">
+        <div id="auth-modal" class="modal">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <div class="auth-form-container">
+                    <form id="signup-form" class="auth-form" style="display: none;">
+                        <h2>Sign Up</h2>
+                        <input type="email" id="signup-email" placeholder="Email" required>
+                        <input type="password" id="signup-password" placeholder="Password" required>
+                        <button type="submit">Sign Up</button>
+                        <p class="auth-switch">Already have an account? <a href="#" id="show-login">Log In</a></p>
+                    </form>
+
+                    <form id="login-form" class="auth-form" style="display: none;">
+                        <h2>Log In</h2>
+                        <input type="email" id="login-email" placeholder="Email" required>
+                        <input type="password" id="login-password" placeholder="Password" required>
+                        <button type="submit">Log In</button>
+                        <p class="auth-switch">Don't have an account? <a href="#" id="show-signup">Sign Up</a></p>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <section id="video-feed" class="video-feed" style="display: none;">
+            </section>
+
+        <section id="upload-section" class="upload-section" style="display: none;">
+            <h2>Upload a New Clip</h2>
+            <form id="upload-form">
+                <input type="file" id="video-file-input" accept="video/*" required>
+                <input type="text" id="video-title-input" placeholder="Video Title" required>
+                <textarea id="video-description-input" placeholder="Video Description"></textarea>
+                <button type="submit">Upload Clip</button>
+            </form>
+            <p id="upload-status"></p>
+        </section>
+
+        <section id="no-videos" class="message-section">
+            <p>No clips yet! Be the first to upload.</p>
+        </section>
+        <section id="loading-videos" class="message-section" style="display: none;">
+            <p>Loading clips...</p>
+        </section>
+
+    </main>
+
+    <script>
+        // Supabase Client Initialization (script.js content)
+        const SUPABASE_URL = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVicGdrdG9kdHdxbm5wemFncXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM3OTc5ODgsImV4cCI6MjA2OTM3Mzk4OH0.G54yMXsd8El-QOTbxdc1g8LWsPihfVLC-XgcRKizy1w'; // Replace with your Supabase Project URL
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVicGdrdG9kdHdxbm5wemFncXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM3OTc5ODgsImV4cCI6MjA2OTM3Mzk4OH0.G54yMXsd8El-QOTbxdc1g8LWsPihfVLC-XgcRKizy1w'; //  Replace with your Supabase Anon Key
+
+        const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // DOM Elements
+        const authModal = document.getElementById('auth-modal');
+        const closeButton = document.querySelector('.close-button');
+        const signupBtn = document.getElementById('signup-btn');
+        const loginBtn = document.getElementById('login-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const userInfoSpan = document.getElementById('user-info');
+        const signupForm = document.getElementById('signup-form');
+        const loginForm = document.getElementById('login-form');
+        const showLoginLink = document.getElementById('show-login');
+        const showSignupLink = document.getElementById('show-signup');
+        const videoFeed = document.getElementById('video-feed');
+        const uploadSection = document.getElementById('upload-section');
+        const uploadForm = document.getElementById('upload-form');
+        const videoFileInput = document.getElementById('video-file-input');
+        const videoTitleInput = document.getElementById('video-title-input');
+        const videoDescriptionInput = document.getElementById('video-description-input');
+        const uploadStatus = document.getElementById('upload-status');
+        const noVideosMessage = document.getElementById('no-videos');
+        const loadingVideosMessage = document.getElementById('loading-videos');
+
+        let currentUser = null; // To store current logged-in user
+
+        // --- Supabase Authentication Functions ---
+
+        async function signUp(email, password) {
+            const { data, error } = await supabase.auth.signUp({
+                email: email,
+                password: password
+            });
+
+            if (error) {
+                alert('Error signing up: ' + error.message);
+                console.error('Sign up error:', error);
+            } else {
+                alert('Signed up successfully! Please check your email to confirm your account.');
+                console.log('Sign up data:', data);
+                authModal.style.display = 'none'; // Close modal on success
+            }
+        }
+
+        async function signIn(email, password) {
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email: email,
+                password: password
+            });
+
+            if (error) {
+                alert('Error logging in: ' + error.message);
+                console.error('Login error:', error);
+            } else {
+                alert('Logged in successfully!');
+                console.log('Login data:', data);
+                updateUIForAuth(data.user); // Update UI based on logged in user
+                authModal.style.display = 'none'; // Close modal
+            }
+        }
+
+        async function signOut() {
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+                alert('Error logging out: ' + error.message);
+                console.error('Logout error:', error);
+            } else {
+                alert('Logged out successfully!');
+                updateUIForAuth(null); // Reset UI
+                videoFeed.innerHTML = ''; // Clear videos
+                videoFeed.style.display = 'none';
+                noVideosMessage.style.display = 'block';
+            }
+        }
+
+        // --- UI Management ---
+
+        function updateUIForAuth(user) {
+            currentUser = user;
+            if (user) {
+                signupBtn.style.display = 'none';
+                loginBtn.style.display = 'none';
+                logoutBtn.style.display = 'block';
+                userInfoSpan.style.display = 'inline';
+                userInfoSpan.textContent = `Welcome, ${user.email || 'User'}!`;
+                uploadSection.style.display = 'block';
+                loadVideos(); // Load videos if logged in
+            } else {
+                signupBtn.style.display = 'block';
+                loginBtn.style.display = 'block';
+                logoutBtn.style.display = 'none';
+                userInfoSpan.style.display = 'none';
+                userInfoSpan.textContent = '';
+                uploadSection.style.display = 'none';
+                videoFeed.style.display = 'none';
+                noVideosMessage.style.display = 'block';
+            }
+        }
+
+        // Check auth state on page load
+        supabase.auth.onAuthStateChange((event, session) => {
+            console.log('Auth state changed:', event, session);
+            updateUIForAuth(session?.user || null);
+        });
+
+        // --- Video Functions ---
+
+        async function loadVideos() {
+            videoFeed.innerHTML = ''; // Clear existing videos
+            noVideosMessage.style.display = 'none';
+            loadingVideosMessage.style.display = 'block';
+            videoFeed.style.display = 'none'; // Hide feed until loaded
+
+            const { data: videos, error } = await supabase
+                .from('videos')
+                .select(`
+                    *,
+                    profiles (username)
+                `) // Select all from videos and username from profiles table via foreign key
+                .order('created_at', { ascending: false });
+
+            loadingVideosMessage.style.display = 'none';
+
+            if (error) {
+                console.error('Error loading videos:', error);
+                alert('Failed to load videos.');
+                noVideosMessage.style.display = 'block';
+            } else {
+                if (videos.length === 0) {
+                    noVideosMessage.style.display = 'block';
+                    videoFeed.style.display = 'none';
+                } else {
+                    noVideosMessage.style.display = 'none';
+                    videoFeed.style.display = 'flex';
+                    videos.forEach(video => {
+                        createVideoCard(video);
+                    });
+                }
+            }
+        }
+
+        function createVideoCard(video) {
+            const videoCard = document.createElement('div');
+            videoCard.classList.add('video-card');
+
+            const uploaderUsername = video.profiles ? video.profiles.username : 'Unknown User';
+
+            videoCard.innerHTML = `
+                <div class="video-player-container">
+                    <video class="video-player" src="${SUPABASE_URL}/storage/v1/object/public/videos/${video.file_path}" controls muted loop preload="auto"></video>
+                </div>
+                <div class="video-info">
+                    <div class="video-details">
+                        <div class="video-title">${video.title}</div>
+                        <div class="video-description">${video.description || ''}</div>
+                        <div class="video-uploader">@${uploaderUsername}</div>
+                    </div>
+                    <div class="video-actions">
+                        <button class="action-btn like-btn" data-video-id="${video.id}">❤️<span>${video.likes || 0}</span></button>
+                        <button class="action-btn comment-btn" data-video-id="${video.id}">💬<span>${video.comments_count || 0}</span></button>
+                        <button class="action-btn share-btn" data-video-id="${video.id}">🔗<span>Share</span></button>
+                    </div>
+                </div>
+            `;
+            videoFeed.appendChild(videoCard);
+
+            // Autoplay functionality - Muted autoplay for better UX
+            const videoElement = videoCard.querySelector('.video-player');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        videoElement.play().catch(e => console.log('Video autoplay blocked:', e));
+                    } else {
+                        videoElement.pause();
+                        videoElement.currentTime = 0; // Reset video on scroll away
+                    }
+                });
+            }, { threshold: 0.7 }); // Play when 70% of video is visible
+
+            observer.observe(videoElement);
+
+            // Basic like button (client-side only for now without a backend update function)
+            const likeBtn = videoCard.querySelector('.like-btn');
+            likeBtn.addEventListener('click', () => {
+                // Here you would typically call a Supabase function to increment likes
+                // For now, it's just a visual change:
+                let currentLikes = parseInt(likeBtn.querySelector('span').textContent);
+                likeBtn.querySelector('span').textContent = currentLikes + 1;
+                alert(`You liked "${video.title}"! (Requires backend update to persist)`);
+            });
+        }
+
+        async function uploadVideo(file, title, description) {
+            if (!currentUser) {
+                alert('You must be logged in to upload videos.');
+                return;
+            }
+
+            uploadStatus.textContent = 'Uploading...';
+            uploadForm.querySelector('button[type="submit"]').disabled = true;
+
+            const filePath = `${currentUser.id}/${Date.now()}_${file.name}`; // Unique path per user
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('videos')
+                .upload(filePath, file, {
+                    cacheControl: '3600',
+                    upsert: false
+                });
+
+            if (uploadError) {
+                uploadStatus.textContent = 'Upload failed: ' + uploadError.message;
+                console.error('Upload error:', uploadError);
+                uploadForm.querySelector('button[type="submit"]').disabled = false;
+                return;
+            }
+
+            // Insert video metadata into the 'videos' table
+            const { data: videoInsertData, error: videoInsertError } = await supabase
+                .from('videos')
+                .insert([
+                    {
+                        user_id: currentUser.id,
+                        title: title,
+                        description: description,
+                        file_path: filePath, // Store the path to the video in storage
+                        likes: 0,
+                        comments_count: 0
+                    }
+                ]);
+
+            if (videoInsertError) {
+                uploadStatus.textContent = 'Failed to save video metadata: ' + videoInsertError.message;
+                console.error('Video metadata insert error:', videoInsertError);
+                // Consider deleting the uploaded file from storage if metadata insert fails
+                await supabase.storage.from('videos').remove([filePath]);
+            } else {
+                uploadStatus.textContent = 'Video uploaded and saved successfully!';
+                console.log('Video saved:', videoInsertData);
+                uploadForm.reset(); // Clear form
+                loadVideos(); // Reload videos to show the new one
+            }
+            uploadForm.querySelector('button[type="submit"]').disabled = false;
+        }
+
+
+        // --- Event Listeners ---
+
+        signupBtn.addEventListener('click', () => {
+            authModal.style.display = 'flex';
+            signupForm.style.display = 'flex';
+            loginForm.style.display = 'none';
+        });
+
+        loginBtn.addEventListener('click', () => {
+            authModal.style.display = 'flex';
+            loginForm.style.display = 'flex';
+            signupForm.style.display = 'none';
+        });
+
+        logoutBtn.addEventListener('click', signOut);
+
+        closeButton.addEventListener('click', () => {
+            authModal.style.display = 'none';
+        });
+
+        showLoginLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            signupForm.style.display = 'none';
+            loginForm.style.display = 'flex';
+        });
+
+        showSignupLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginForm.style.display = 'none';
+            signupForm.style.display = 'flex';
+        });
+
+        signupForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            signUp(email, password);
+        });
+
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            signIn(email, password);
+        });
+
+        uploadForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const file = videoFileInput.files[0];
+            const title = videoTitleInput.value;
+            const description = videoDescriptionInput.value;
+            if (file && title) {
+                uploadVideo(file, title, description);
+            } else {
+                alert('Please select a video file and enter a title.');
+            }
+        });
+
+        // Initialize UI on page load
+        // This will trigger the onAuthStateChange listener
+        supabase.auth.getSession();
+    </script>
+</body>
+</html>
