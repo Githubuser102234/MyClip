@@ -32,7 +32,7 @@
         }
         input[type="email"], input[type="password"], input[type="file"], button {
             padding: 0.8rem;
-            border: 1:px solid #ddd;
+            border: 1px solid #ddd;
             border-radius: 4px;
             font-size: 1rem;
         }
@@ -124,8 +124,8 @@
         const SUPABASE_URL = 'https://ebpgktodtwqnnpzagqvp.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVicGdrdG9kdHdxbm5wemFncXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM3OTc5ODgsImV4cCI6MjA2OTM3Mzk4OH0.G54yMXsd8El-QOTbxdc1g8LWsPihfVLC-XgcRKizy1w';  
         
-        // This now works because of the updated script tag
-        const supabase = supabase_js.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // FIX: Revert to the correct global call.
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const authContainer = document.getElementById('auth-container');
         const loggedInSection = document.getElementById('logged-in-section');
