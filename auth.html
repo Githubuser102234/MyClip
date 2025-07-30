@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Authentication - Raw File Sharing</title>
+    <title>Account Action - Raw File Sharing</title>
     <style>
         body {
             font-family: sans-serif;
@@ -36,7 +36,7 @@
             gap: 1rem;
             margin-top: 1.5rem;
         }
-        input[type="email"], input[type="password"] {
+        input[type="password"] {
             padding: 0.8rem;
             border: 1px solid #ddd;
             border-radius: 4px;
@@ -49,74 +49,37 @@
             cursor: pointer;
             border: none;
             color: white;
+            background-color: #007bff;
             transition: background-color 0.2s ease;
         }
-        #auth-buttons {
-            display: flex;
-            gap: 10px;
-        }
-        #signup-btn, #signin-btn {
-            flex: 1;
-            background-color: #007bff;
-        }
-        #signup-btn:hover, #signin-btn:hover {
+        button:hover {
             background-color: #0056b3;
         }
-        #google-signin-btn {
-            background-color: #4285F4;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
+        .message {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 4px;
+            font-weight: bold;
         }
-        #google-signin-btn:hover {
-            background-color: #357ae8;
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
         }
-        #google-signin-btn img {
-            width: 20px;
-            height: 20px;
-        }
-        .link-button {
-            background: none;
-            color: #007bff;
-            text-decoration: underline;
-            padding: 0;
-            font-size: 0.9rem;
-            margin-top: 5px;
-        }
-        .link-button:hover {
-            color: #0056b3;
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
         }
         .hidden {
             display: none;
-        }
-        #auth-status {
-            margin-top: 1rem;
-            font-weight: bold;
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <div class="container">
-        <h1>Raw File Sharing System</h1>
-        
-        <div id="auth-form-section">
-            <h3>Sign In or Sign Up</h3>
-            <form id="auth-form">
-                <input type="email" id="email-input" placeholder="Email" required>
-                <input type="password" id="password-input" placeholder="Password" required>
-                <div id="auth-buttons">
-                    <button type="button" id="signup-btn">Sign Up</button>
-                    <button type="button" id="signin-btn">Sign In</button>
-                </div>
-            </form>
-            <button type="button" id="google-signin-btn" style="margin-top: 1rem;">
-                <img src="https://www.svgrepo.com/show/355037/google.svg" alt="Google logo">
-                Sign in with Google
-            </button>
-            <button type="button" id="forgot-password-btn" class="link-button">Forgot your password?</button>
-        </div>
+        <h1>Account Action</h1>
 
         <div id="password-reset-section" class="hidden">
             <h3>Reset Your Password</h3>
@@ -126,22 +89,9 @@
             </form>
         </div>
 
-        <div id="request-reset-section" class="hidden">
-            <h3>Request Password Reset</h3>
-            <p>Enter your email to receive a password reset link.</p>
-            <form id="request-reset-form">
-                <input type="email" id="reset-email-input" placeholder="Email" required>
-                <button type="submit">Send Reset Link</button>
-            </form>
-            <button type="button" id="back-to-login-btn" class="link-button">Back to Sign In</button>
+        <div id="message-section">
+            <p id="status-message" class="message"></p>
         </div>
-
-        <div id="magic-link-section" class="hidden">
-            <h3>Check Your Email</h3>
-            <p id="magic-link-message">We've sent a magic link to your email address. Click the link to log in.</p>
-        </div>
-
-        <p id="auth-status"></p>
     </div>
 
     <script>
@@ -152,182 +102,96 @@
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // UI Element References
-        const authFormSection = document.getElementById('auth-form-section');
         const passwordResetSection = document.getElementById('password-reset-section');
-        const requestResetSection = document.getElementById('request-reset-section');
-        const magicLinkSection = document.getElementById('magic-link-section');
-        const magicLinkMessage = document.getElementById('magic-link-message');
-        const authStatus = document.getElementById('auth-status');
-        
-        const emailInput = document.getElementById('email-input');
-        const passwordInput = document.getElementById('password-input');
-        const signupBtn = document.getElementById('signup-btn');
-        const signinBtn = document.getElementById('signin-btn');
-        const googleSigninBtn = document.getElementById('google-signin-btn');
-        const forgotPasswordBtn = document.getElementById('forgot-password-btn');
-        const backToLoginBtn = document.getElementById('back-to-login-btn');
-
-        const requestResetForm = document.getElementById('request-reset-form');
-        const resetEmailInput = document.getElementById('reset-email-input');
-
+        const messageSection = document.getElementById('message-section');
+        const statusMessage = document.getElementById('status-message');
         const updatePasswordBtn = document.getElementById('update-password-btn');
         const newPasswordInput = document.getElementById('new-password-input');
+        const passwordResetForm = document.getElementById('password-reset-form');
 
-        // Helper function to show a specific auth section and hide others
-        const showAuthSection = (sectionId) => {
-            const sections = [authFormSection, passwordResetSection, requestResetSection, magicLinkSection];
-            sections.forEach(section => {
-                section.classList.add('hidden');
-            });
-            document.getElementById(sectionId).classList.remove('hidden');
-            authStatus.textContent = ''; // Clear status message
+        // Helper function to display a message
+        const showMessage = (text, isError = false) => {
+            statusMessage.textContent = text;
+            statusMessage.className = `message ${isError ? 'error' : 'success'}`;
+            messageSection.classList.remove('hidden');
         };
 
-        // Redirect to the main application page if a user is already authenticated
-        const checkUserSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                // Redirect to your main application page
-                window.location.href = '/index.html'; 
-            }
-        };
-
-        // Handle initial page load and URL hash changes
-        const handleAuthFlow = () => {
+        // --- Main Logic to Handle URL Hash ---
+        const handleAuthAction = async () => {
             const urlParams = new URLSearchParams(window.location.hash.substring(1));
             const type = urlParams.get('type');
-            
+
+            if (!type) {
+                showMessage("Invalid or expired link. No action specified.", true);
+                return;
+            }
+
             if (type === 'recovery') {
-                showAuthSection('password-reset-section');
+                // This is a password reset link
+                passwordResetSection.classList.remove('hidden');
+                messageSection.classList.add('hidden');
             } else if (type === 'signup') {
-                showAuthSection('magic-link-section');
-                magicLinkMessage.textContent = 'Sign up successful! Please check your email to confirm your account.';
+                // This is an email confirmation link
+                messageSection.classList.remove('hidden');
+                passwordResetSection.classList.add('hidden');
+                showMessage("Email confirmed successfully! You can now log in to your account.", false);
+
+                // Optional: Automatically redirect the user to the login page after confirmation
+                setTimeout(() => {
+                    window.location.href = '/login.html'; // Adjust to your login page URL
+                }, 5000);
+
+            } else if (type === 'magiclink') {
+                messageSection.classList.remove('hidden');
+                passwordResetSection.classList.add('hidden');
+                showMessage("You have successfully signed in! Redirecting you to your account...", false);
+
+                setTimeout(() => {
+                    window.location.href = '/index.html'; // Adjust to your main app URL
+                }, 3000);
             } else {
-                showAuthSection('auth-form-section');
+                // Catch-all for any other invalid 'type'
+                showMessage("Invalid or expired link. The action is not recognized.", true);
             }
         };
 
-        // --- Event Listeners for Authentication Actions ---
-
-        // Listen for session changes (e.g., successful sign-in/out)
-        supabase.auth.onAuthStateChange((event, session) => {
-            if (session) {
-                // If a user signs in, redirect them to the main page
-                window.location.href = '/index.html';
-            }
-        });
-
-        // Sign Up button click
-        signupBtn.addEventListener('click', async () => {
-            const email = emailInput.value;
-            const password = passwordInput.value;
-            authStatus.textContent = 'Signing up...';
-
-            const { error } = await supabase.auth.signUp({
-                email,
-                password,
-            });
-
-            if (error) {
-                authStatus.textContent = `Sign Up Error: ${error.message}`;
-                console.error('Sign Up Error:', error);
-            } else {
-                showAuthSection('magic-link-section');
-                magicLinkMessage.textContent = 'Sign up successful! Check your email for a confirmation link.';
-            }
-        });
-
-        // Sign In button click
-        signinBtn.addEventListener('click', async () => {
-            const email = emailInput.value;
-            const password = passwordInput.value;
-            authStatus.textContent = 'Signing in...';
-
-            const { error } = await supabase.auth.signInWithPassword({
-                email,
-                password,
-            });
-
-            if (error) {
-                authStatus.textContent = `Sign In Error: ${error.message}`;
-                console.error('Sign In Error:', error);
-            }
-            // A successful sign-in will trigger the onAuthStateChange listener
-        });
-        
-        // Google Sign-In button click
-        googleSigninBtn.addEventListener('click', async () => {
-            authStatus.textContent = 'Redirecting to Google...';
-            const { error } = await supabase.auth.signInWithOAuth({
-                provider: 'google',
-                options: {
-                    // Redirect back to this authentication page after sign-in
-                    redirectTo: window.location.origin + window.location.pathname
-                }
-            });
+        // --- Event Listener for Password Reset Form ---
+        passwordResetForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
             
-            if (error) {
-                authStatus.textContent = `Google Sign-in Error: ${error.message}`;
-                console.error('Google Sign-in Error:', error);
-            }
-        });
-
-        // "Forgot Password?" link click
-        forgotPasswordBtn.addEventListener('click', () => {
-            showAuthSection('request-reset-section');
-        });
-
-        // "Back to Sign In" link click
-        backToLoginBtn.addEventListener('click', () => {
-            showAuthSection('auth-form-section');
-        });
-        
-        // Request Password Reset Form submit
-        requestResetForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = resetEmailInput.value;
-            authStatus.textContent = 'Sending reset link...';
-            const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                // Redirect back to this page with the 'recovery' hash
-                redirectTo: window.location.origin + window.location.pathname + '#type=recovery'
-            });
-            if (error) {
-                authStatus.textContent = `Error: ${error.message}`;
-            } else {
-                authStatus.textContent = 'Password reset link sent! Check your email.';
-                resetEmailInput.value = '';
-            }
-        });
-
-        // Update Password Form submit
-        password-reset-form.addEventListener('submit', async (e) => {
-            e.preventDefault();
             const newPassword = newPasswordInput.value;
             if (!newPassword) {
-                authStatus.textContent = 'Please enter a new password.';
+                showMessage('Please enter a new password.', true);
                 return;
             }
-            authStatus.textContent = 'Updating password...';
+
+            showMessage('Updating password...', false);
+            
+            // Supabase's `updateUser` method will automatically use the session token
+            // from the URL hash, so you don't need to manually extract it.
             const { error } = await supabase.auth.updateUser({ password: newPassword });
+
             if (error) {
-                authStatus.textContent = `Error updating password: ${error.message}`;
+                showMessage(`Error updating password: ${error.message}. The link may have expired.`, true);
+                console.error('Error updating password:', error);
             } else {
-                authStatus.textContent = 'Password updated successfully! Redirecting to main page...';
+                showMessage('Password updated successfully! Redirecting to login...', false);
                 newPasswordInput.value = '';
-                // Clear the hash and redirect after a short delay
+
+                // After success, remove the token from the URL and redirect
                 setTimeout(() => {
                     window.location.hash = '';
-                    window.location.href = '/index.html';
-                }, 3000);
+                    window.location.href = '/login.html'; // Adjust to your login page URL
+                }, 5000);
             }
         });
 
-        // Run on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            checkUserSession();
-            handleAuthFlow();
-        });
+        // Run on page load and on hash change
+        window.addEventListener('DOMContentLoaded', handleAuthAction);
+        window.addEventListener('hashchange', handleAuthAction);
 
+        // Initial check in case the URL already contains a hash
+        handleAuthAction();
     </script>
 </body>
 </html>
