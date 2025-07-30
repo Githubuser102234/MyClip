@@ -124,7 +124,6 @@
         const SUPABASE_URL = 'https://ebpgktodtwqnnpzagqvp.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVicGdrdG9kdHdxbm5wemFncXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM3OTc5ODgsImV4cCI6MjA2OTM3Mzk4OH0.G54yMXsd8El-QOTbxdc1g8LWsPihfVLC-XgcRKizy1w';  
         
-        // FIX: Explicitly access createClient from the global 'supabase' object.
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const authContainer = document.getElementById('auth-container');
@@ -173,14 +172,19 @@
 
             data.forEach(file => {
                 const { file_path } = file;
-                const fileURL = `${SUPABASE_URL}/storage/v1/object/public/raw_files/${file_path}`;
                 const filename = file_path.split('/').pop();
 
                 const link = document.createElement('a');
-                link.href = fileURL;
-                link.target = '_blank';
+                // Change the href to a hash link with the file path
+                link.href = `#${file_path}`; 
                 link.textContent = filename;
                 link.className = 'file-item';
+
+                // Add a click event listener to handle the download
+                link.addEventListener('click', (e) => {
+                    e.preventDefault(); // Prevent the default link behavior
+                    window.open(`${SUPABASE_URL}/storage/v1/object/public/raw_files/${file_path}`, '_blank');
+                });
 
                 fileListContainer.appendChild(link);
             });
