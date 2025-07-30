@@ -465,7 +465,6 @@
                     email,
                     password,
                     options: {
-                        // Correctly specify the full redirect URL for GitHub Pages
                         redirectTo: `${GITHUB_PAGES_BASE_URL}/#type=signup`
                     }
                 });
@@ -514,8 +513,8 @@
                 const email = resetEmailInput.value;
                 authStatus.textContent = 'Sending reset link...';
                 const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                    // Correctly specify the full redirect URL for GitHub Pages
-                    redirectTo: `${GITHUB_PAGES_BASE_URL}/#type=recovery`
+                    // Correctly specify the full redirect URL to auth.html
+                    redirectTo: `${GITHUB_PAGES_BASE_URL}/auth#type=recovery`
                 });
                 if (error) {
                     authStatus.textContent = `Error: ${error.message}`;
@@ -550,8 +549,7 @@
                 const { error } = await supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
-                        // Correctly specify the full redirect URL for GitHub Pages
-                        redirectTo: GITHUB_PAGES_BASE_URL
+                        redirectTo: `${GITHUB_PAGES_BASE_URL}/auth`
                     }
                 });
                 
