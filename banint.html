@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raw File Sharing System</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            line-height: 1.6;
+            background-color: #f4f4f4;
+            color: #333;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 1rem;
+        }
+        .container {
+            background: #fff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2 {
+            text-align: center;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        input[type="email"], input[type="password"], input[type="text"], input[type="file"], button {
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .file-list {
+            margin-top: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .file-item {
+            padding: 0.5rem;
+            background: #e9ecef;
+            border-radius: 4px;
+            word-wrap: break-word;
+            text-decoration: none;
+            color: #007bff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .file-item:hover {
+            background: #d4d8db;
+        }
+        .file-owner {
+            font-size: 0.8rem;
+            color: #666;
+            text-decoration: none;
+        }
+        #auth-container {
+            text-align: center;
+        }
+        #auth-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        #auth-buttons button {
+            flex: 1;
+        }
+        #logout-btn {
+            background-color: #dc3545;
+            margin-bottom: 1rem;
+        }
+        .hidden {
+            display: none;
+        }
+        #file-view-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 2rem;
+            border: 1px solid #ddd;
+            padding: 2rem;
+            border-radius: 8px;
+        }
+        #file-content-embed {
+            width: 100%;
+            max-height: 600px;
+            border: 1px solid #ccc;
+            overflow: auto;
+            background-color: #f8f9fa;
+            padding: 1rem;
+            font-family: monospace;
+            text-align: center;
+        }
+        #file-content-embed img,
+        #file-content-embed video,
+        #file-content-embed audio,
+        #file-content-embed iframe {
+            max-width: 100%;
+            height: auto;
+            border: none;
+        }
+        #file-view-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+        #file-view-buttons button {
+            flex: 1;
+        }
+        #google-signin-btn {
+            background-color: #4285F4;
+            color: white;
+            border: none;
+            padding: 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        #google-signin-btn img {
+            width: 20px;
+            height: 20px;
+        }
+        .link-button {
+            background: none;
+            color: #007bff;
+            text-decoration: underline;
+            padding: 0;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+        .link-button:hover {
+            color: #0056b3;
+        }
+        /* New styles for profile view */
+        #profile-view-container {
+            text-align: center;
+            margin-top: 2rem;
+            border: 1px solid #ddd;
+            padding: 2rem;
+            border-radius: 8px;
+        }
+        #profile-pic {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 1rem;
+            background-color: #ccc;
+        }
+        #profile-details h3 {
+            margin: 0;
+        }
+        #profile-details p {
+            color: #666;
+            font-style: italic;
+        }
+        #profile-file-list {
+            margin-top: 2rem;
+            text-align: left;
+        }
+        #my-profile-btn {
+            margin-top: 1rem;
+        }
+        #create-profile-form {
+            max-width: 400px;
+            margin: 2rem auto;
+            border: 1px solid #ddd;
+            padding: 2rem;
+            border-radius: 8px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Raw File Sharing System</h1>
+
+        <div id="logged-in-section" class="hidden">
+            <h2>Welcome!</h2>
+            <p>You are logged in. You can upload new files.</p>
+            <button id="logout-btn">Logout</button>
+            <button id="my-profile-btn">My Profile</button>
+            
+            <h3>Upload a Raw File</h3>
+            <form id="upload-form">
+                <input type="file" id="file-input" required>
+                <button type="submit">Upload File</button>
+            </form>
+            <p id="upload-status"></p>
+        </div>
+
+        <div id="profile-creation-section" class="hidden">
+            <h2>Complete Your Profile</h2>
+            <p>You must choose a unique username to continue.</p>
+            <form id="create-profile-form">
+                <input type="text" id="username-input" placeholder="Permanent Username" required>
+                <input type="text" id="nickname-input" placeholder="Optional Nickname">
+                <label for="pfp-input">Upload Profile Picture (Optional):</label>
+                <input type="file" id="pfp-input" accept="image/*">
+                <button type="submit">Save Profile</button>
+            </form>
+            <p id="profile-status"></p>
+        </div>
+
+        <div id="auth-flow-container">
+            <div id="auth-form-section">
+                <h3>Sign Up or Log In</h3>
+                <form id="auth-form">
+                    <input type="email" id="email-input" placeholder="Email" required>
+                    <input type="password" id="password-input" placeholder="Password" required>
+                    <div id="auth-buttons">
+                        <button type="button" id="signup-btn">Sign Up</button>
+                        <button type="button" id="signin-btn">Log In</button>
+                    </div>
+                </form>
+                <button type="button" id="google-signin-btn" style="margin-top: 1rem;">
+                    <img src="https://www.svgrepo.com/show/355037/google.svg" alt="Google logo">
+                    Sign in with Google
+                </button>
+                <button type="button" id="forgot-password-btn" class="link-button">Forgot your password?</button>
+            </div>
+
+            <div id="password-reset-section" class="hidden">
+                <h3>Reset Your Password</h3>
+                <form id="password-reset-form">
+                    <input type="password" id="new-password-input" placeholder="New Password" required>
+                    <button type="submit" id="update-password-btn">Update Password</button>
+                </form>
+            </div>
+
+            <div id="request-reset-section" class="hidden">
+                <h3>Request Password Reset</h3>
+                <p>Enter your email to receive a password reset link.</p>
+                <form id="request-reset-form">
+                    <input type="email" id="reset-email-input" placeholder="Email" required>
+                    <button type="submit">Send Reset Link</button>
+                    <button type="button" id="back-to-login-btn" class="link-button">Back to Sign In</button>
+                </form>
+            </div>
+
+            <div id="magic-link-section" class="hidden">
+                <h3>Check Your Email</h3>
+                <p id="magic-link-message">We've sent a magic link to your email address. Click the link to log in.</p>
+            </div>
+
+            <p id="auth-status"></p>
+        </div>
+
+        <div id="file-viewer">
+            <h2>Public Files</h2>
+            <div class="file-list" id="file-list">
+                <p>Loading files...</p>
+            </div>
+        </div>
+        
+        <div id="file-view-container" class="hidden">
+            <h2 id="file-view-title"></h2>
+            <div id="file-content-embed"></div>
+            <div id="file-view-buttons">
+                <button id="download-btn">Download</button>
+                <button id="share-btn">Share Link</button>
+            </div>
+        </div>
+
+        <div id="profile-view-container" class="hidden">
+            <img id="profile-pic" src="" alt="Profile Picture">
+            <div id="profile-details">
+                <h3 id="profile-username"></h3>
+                <p id="profile-nickname"></p>
+            </div>
+            <div id="profile-file-list" class="file-list">
+                <h3>Uploaded Files</h3>
+                <p>Loading files...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://ebpgktodtwqnnpzagqvp.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVicGdrdG9kdHdxbm5wemFncXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM3OTc5ODgsImV4cCI6MjA2OTM3Mzk4OH0.G54yMXsd8El-QOTbxdc1g8LWsPihfVLC-XgcRKizy1w';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const GITHUB_PAGES_BASE_URL = 'https://githubuser102234.github.io/MyClip';
+
+        // UI Element References
+        const loggedInSection = document.getElementById('logged-in-section');
+        const authFlowContainer = document.getElementById('auth-flow-container');
+        const authFormSection = document.getElementById('auth-form-section');
+        const passwordResetSection = document.getElementById('password-reset-section');
+        const requestResetSection = document.getElementById('request-reset-section');
+        const magicLinkSection = document.getElementById('magic-link-section');
+        const magicLinkMessage = document.getElementById('magic-link-message');
+
+        const emailInput = document.getElementById('email-input');
+        const passwordInput = document.getElementById('password-input');
+        const signupBtn = document.getElementById('signup-btn');
+        const signinBtn = document.getElementById('signin-btn');
+        const googleSigninBtn = document.getElementById('google-signin-btn');
+        const forgotPasswordBtn = document.getElementById('forgot-password-btn');
+        const backToLoginBtn = document.getElementById('back-to-login-btn');
+        
+        const resetEmailInput = document.getElementById('reset-email-input');
+        const requestResetForm = document.getElementById('request-reset-form');
+        
+        const newPasswordInput = document.getElementById('new-password-input');
+        const updatePasswordBtn = document.getElementById('update-password-btn');
+        
+        const authStatus = document.getElementById('auth-status');
+        const logoutBtn = document.getElementById('logout-btn');
+        const uploadForm = document.getElementById('upload-form');
+        const fileInput = document.getElementById('file-input');
+        const uploadStatus = document.getElementById('upload-status');
+        const fileListContainer = document.getElementById('file-list');
+        
+        const fileViewContainer = document.getElementById('file-view-container');
+        const fileViewTitle = document.getElementById('file-view-title');
+        const fileContentEmbed = document.getElementById('file-content-embed');
+        const downloadBtn = document.getElementById('download-btn');
+        const shareBtn = document.getElementById('share-btn');
+
+        // NEW: Profile UI Elements
+        const profileCreationSection = document.getElementById('profile-creation-section');
+        const createProfileForm = document.getElementById('create-profile-form');
+        const usernameInput = document.getElementById('username-input');
+        const nicknameInput = document.getElementById('nickname-input');
+        const pfpInput = document.getElementById('pfp-input');
+        const profileStatus = document.getElementById('profile-status');
+        const myProfileBtn = document.getElementById('my-profile-btn');
+
+        const profileViewContainer = document.getElementById('profile-view-container');
+        const profilePic = document.getElementById('profile-pic');
+        const profileUsername = document.getElementById('profile-username');
+        const profileNickname = document.getElementById('profile-nickname');
+        const profileFileList = document.getElementById('profile-file-list');
+        
+        let currentFileUrl = '';
+        
+        // Helper function to show a specific auth section
+        const showAuthSection = (sectionId) => {
+            const sections = [authFormSection, passwordResetSection, requestResetSection, magicLinkSection];
+            sections.forEach(section => {
+                section.classList.add('hidden');
+            });
+            document.getElementById(sectionId).classList.remove('hidden');
+            authStatus.textContent = ''; // Clear status message
+        };
+
+        const getFileType = (filename) => {
+            const extension = filename.split('.').pop().toLowerCase();
+            const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp'];
+            const videoExtensions = ['mp4', 'webm', 'ogg', 'mov'];
+            const audioExtensions = ['mp3', 'wav', 'ogg', 'aac'];
+            const pdfExtensions = ['pdf'];
+
+            if (imageExtensions.includes(extension)) return 'image';
+            if (videoExtensions.includes(extension)) return 'video';
+            if (audioExtensions.includes(extension)) return 'audio';
+            if (pdfExtensions.includes(extension)) return 'pdf';
+
+            return 'text'; // Default to text for anything else
+        };
+
+        // NEW: Check if user has a profile and update UI
+        const checkUserProfile = async (session) => {
+            if (!session) {
+                updateUI(null);
+                return;
+            }
+
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('username')
+                .eq('id', session.user.id)
+                .single();
+
+            if (error && error.code === 'PGRST116') { // No profile found
+                profileCreationSection.classList.remove('hidden');
+                loggedInSection.classList.add('hidden');
+                authFlowContainer.classList.add('hidden');
+            } else if (data) {
+                profileCreationSection.classList.add('hidden');
+                updateUI(session);
+            } else {
+                console.error('Error fetching profile:', error);
+            }
+        };
+
+        const updateUI = (session) => {
+            if (session) {
+                authFlowContainer.classList.add('hidden');
+                loggedInSection.classList.remove('hidden');
+                profileCreationSection.classList.add('hidden');
+                // Clean up the URL hash after a successful login
+                if (window.location.hash.includes('access_token')) {
+                    window.location.hash = '';
+                }
+            } else {
+                authFlowContainer.classList.remove('hidden');
+                loggedInSection.classList.add('hidden');
+                profileCreationSection.classList.add('hidden');
+            }
+        };
+
+        const showFileView = (filePath, fileURL) => {
+            // Hide other views
+            fileListContainer.parentElement.classList.add('hidden');
+            profileViewContainer.classList.add('hidden');
+            
+            const filename = filePath.split('/').pop();
+            fileViewTitle.textContent = filename;
+            currentFileUrl = fileURL;
+            
+            fileContentEmbed.innerHTML = '';
+            
+            fileViewContainer.classList.remove('hidden');
+
+            const fileType = getFileType(filename);
+            
+            if (fileType === 'image') {
+                const img = document.createElement('img');
+                img.src = fileURL;
+                img.alt = filename;
+                fileContentEmbed.appendChild(img);
+            } else if (fileType === 'video') {
+                const video = document.createElement('video');
+                video.src = fileURL;
+                video.controls = true;
+                video.autoplay = false;
+                fileContentEmbed.appendChild(video);
+            } else if (fileType === 'audio') {
+                const audio = document.createElement('audio');
+                audio.src = fileURL;
+                audio.controls = true;
+                audio.autoplay = false;
+                fileContentEmbed.appendChild(audio);
+            } else if (fileType === 'pdf') {
+                 const iframe = document.createElement('iframe');
+                 iframe.src = fileURL;
+                 iframe.width = '100%';
+                 iframe.height = '600px';
+                 fileContentEmbed.appendChild(iframe);
+            } else {
+                fileContentEmbed.style.whiteSpace = 'pre-wrap';
+                fetch(fileURL)
+                    .then(response => response.text())
+                    .then(text => {
+                        fileContentEmbed.textContent = text;
+                    })
+                    .catch(error => {
+                        fileContentEmbed.textContent = `Error loading file: ${error.message}`;
+                        console.error('Error fetching file content:', error);
+                    });
+            }
+        };
+        
+        // NEW: Fetch all files and their owners
+        const fetchFiles = async () => {
+            fileListContainer.innerHTML = '<p>Fetching files...</p>';
+            fileViewContainer.classList.add('hidden');
+            profileViewContainer.classList.add('hidden');
+            fileListContainer.parentElement.classList.remove('hidden');
+
+            const { data, error } = await supabase
+                .from('files')
+                .select(`
+                    file_path,
+                    profiles (username)
+                `);
+
+            if (error) {
+                console.error('Error fetching files:', error);
+                fileListContainer.textContent = `Error fetching files: ${error.message}.`;
+                return;
+            }
+
+            if (data.length === 0) {
+                fileListContainer.textContent = 'No files have been shared yet.';
+                return;
+            }
+
+            fileListContainer.innerHTML = '';
+            data.forEach(file => {
+                const filename = file.file_path.split('/').pop();
+                const ownerUsername = file.profiles.username;
+                
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+
+                const fileLink = document.createElement('a');
+                fileLink.href = `#${file.file_path}`; 
+                fileLink.textContent = filename;
+                
+                fileLink.addEventListener('click', (e) => {
+                    e.preventDefault(); 
+                    window.location.hash = file.file_path;
+                });
+                
+                const profileLink = document.createElement('a');
+                profileLink.href = `#profile:${ownerUsername}`;
+                profileLink.textContent = `@${ownerUsername}`;
+                profileLink.className = 'file-owner';
+
+                fileItem.appendChild(fileLink);
+                fileItem.appendChild(profileLink);
+                fileListContainer.appendChild(fileItem);
+            });
+        };
+
+        // NEW: Fetch and display a specific user's profile and files
+        const viewProfile = async (username) => {
+            fileViewContainer.classList.add('hidden');
+            fileListContainer.parentElement.classList.add('hidden');
+            profileViewContainer.classList.remove('hidden');
+            profileFileList.innerHTML = '<p>Loading profile...</p>';
+
+            const { data: profile, error: profileError } = await supabase
+                .from('profiles')
+                .select('nickname, profile_picture_url, is_banned, id')
+                .eq('username', username)
+                .single();
+
+            if (profileError) {
+                profileFileList.innerHTML = `<p>Error: Profile for user @${username} not found.</p>`;
+                console.error('Profile not found:', profileError);
+                return;
+            }
+
+            if (profile.is_banned) {
+                profilePic.classList.add('hidden');
+                profileUsername.textContent = 'This account is banned';
+                profileNickname.textContent = 'due to multiple community guidelines violations and is no longer available';
+                profileFileList.innerHTML = '';
+                return;
+            }
+            
+            profilePic.classList.remove('hidden');
+            profileUsername.textContent = `@${username}`;
+            profileNickname.textContent = profile.nickname || 'User';
+            profilePic.src = profile.profile_picture_url || 'https://via.placeholder.com/150';
+
+            const { data: files, error: filesError } = await supabase
+                .from('files')
+                .select('file_path')
+                .eq('owner_id', profile.id);
+            
+            if (filesError) {
+                profileFileList.innerHTML = `<p>Error fetching files for @${username}.</p>`;
+                console.error('Error fetching profile files:', filesError);
+                return;
+            }
+
+            profileFileList.innerHTML = '';
+            if (files.length === 0) {
+                profileFileList.innerHTML = '<p>This user has not uploaded any files yet.</p>';
+                return;
+            }
+
+            files.forEach(file => {
+                const filename = file.file_path.split('/').pop();
+                const link = document.createElement('a');
+                link.href = `#${file.file_path}`;
+                link.textContent = filename;
+                link.className = 'file-item';
+                profileFileList.appendChild(link);
+            });
+        };
+
+        const handleHashChange = async () => {
+            const hash = window.location.hash.substring(1);
+            
+            if (hash.startsWith('profile:')) {
+                const username = hash.substring(8);
+                await viewProfile(username);
+                return;
+            }
+
+            // Check for auth-related hashes first
+            const urlParams = new URLSearchParams(hash);
+            const type = urlParams.get('type');
+            if (type) {
+                if (type === 'recovery') {
+                    showAuthSection('password-reset-section');
+                } else if (type === 'signup') {
+                    showAuthSection('magic-link-section');
+                    magicLinkMessage.textContent = 'Sign up successful! Please check your email to confirm your account and log in.';
+                }
+                return;
+            }
+            
+            if (hash) {
+                const fileURL = `${SUPABASE_URL}/storage/v1/object/public/raw_files/${hash}`;
+                try {
+                    const response = await fetch(fileURL, { method: 'HEAD' });
+                    if (response.ok) {
+                        showFileView(hash, fileURL);
+                    } else {
+                        console.error('File not found:', hash);
+                        window.location.hash = '';
+                        fetchFiles();
+                    }
+                } catch (error) {
+                    console.error('Error checking file existence:', error);
+                    window.location.hash = '';
+                    fetchFiles();
+                }
+            } else {
+                fetchFiles();
+            }
+        };
+
+        (async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            checkUserProfile(session);
+            handleHashChange();
+
+            supabase.auth.onAuthStateChange((event, session) => {
+                checkUserProfile(session);
+                handleHashChange();
+            });
+            
+            window.addEventListener('hashchange', handleHashChange);
+
+            signupBtn.addEventListener('click', async () => {
+                const email = emailInput.value;
+                const password = passwordInput.value;
+                authStatus.textContent = 'Signing up...';
+
+                const { error } = await supabase.auth.signUp({
+                    email,
+                    password,
+                    options: {
+                        redirectTo: `${GITHUB_PAGES_BASE_URL}/#type=signup`
+                    }
+                });
+
+                if (error) {
+                    authStatus.textContent = `Sign Up Error: ${error.message}`;
+                    console.error('Sign Up Error:', error);
+                } else {
+                    showAuthSection('magic-link-section');
+                    magicLinkMessage.textContent = 'Sign up successful! Check your email for a confirmation link.';
+                    emailInput.value = '';
+                    passwordInput.value = '';
+                }
+            });
+
+            signinBtn.addEventListener('click', async () => {
+                const email = emailInput.value;
+                const password = passwordInput.value;
+                authStatus.textContent = 'Logging in...';
+
+                const { error } = await supabase.auth.signInWithPassword({
+                    email,
+                    password,
+                });
+
+                if (error) {
+                    authStatus.textContent = `Log In Error: ${error.message}`;
+                    console.error('Log In Error:', error);
+                } else {
+                    authStatus.textContent = 'Logged in successfully!';
+                    emailInput.value = '';
+                    passwordInput.value = '';
+                }
+            });
+
+            forgotPasswordBtn.addEventListener('click', () => {
+                showAuthSection('request-reset-section');
+            });
+
+            backToLoginBtn.addEventListener('click', () => {
+                showAuthSection('auth-form-section');
+            });
+            
+            requestResetForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = resetEmailInput.value;
+                authStatus.textContent = 'Sending reset link...';
+                const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                    redirectTo: `${GITHUB_PAGES_BASE_URL}/auth#type=recovery`
+                });
+                if (error) {
+                    authStatus.textContent = `Error: ${error.message}`;
+                } else {
+                    authStatus.textContent = 'Password reset link sent! Check your email.';
+                }
+            });
+
+            updatePasswordBtn.addEventListener('click', async () => {
+                const newPassword = newPasswordInput.value;
+                if (!newPassword) {
+                    authStatus.textContent = 'Please enter a new password.';
+                    return;
+                }
+                authStatus.textContent = 'Updating password...';
+                const { error } = await supabase.auth.updateUser({ password: newPassword });
+                if (error) {
+                    authStatus.textContent = `Error updating password: ${error.message}`;
+                } else {
+                    authStatus.textContent = 'Password updated successfully!';
+                    newPasswordInput.value = '';
+                    setTimeout(() => {
+                        window.location.hash = '';
+                    }, 3000);
+                }
+            });
+            
+            googleSigninBtn.addEventListener('click', async () => {
+                authStatus.textContent = 'Redirecting to Google...';
+                const { error } = await supabase.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                        redirectTo: `${GITHUB_PAGES_BASE_URL}/auth`
+                    }
+                });
+                
+                if (error) {
+                    authStatus.textContent = `Google Sign-in Error: ${error.message}`;
+                    console.error('Google Sign-in Error:', error);
+                }
+            });
+
+            logoutBtn.addEventListener('click', async () => {
+                const { error } = await supabase.auth.signOut();
+                if (error) {
+                    console.error('Logout error:', error);
+                }
+            });
+
+            // NEW: Event listener for creating a profile
+            createProfileForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                profileStatus.textContent = 'Creating profile...';
+                
+                const user = (await supabase.auth.getSession()).data.session.user;
+                const username = usernameInput.value.toLowerCase();
+                const nickname = nicknameInput.value;
+                const pfpFile = pfpInput.files[0];
+                let pfpUrl = null;
+
+                if (pfpFile) {
+                    const pfpPath = `profile_pictures/${user.id}/${Date.now()}_${pfpFile.name}`;
+                    const { error: uploadError } = await supabase.storage
+                        .from('raw_files')
+                        .upload(pfpPath, pfpFile, { upsert: true });
+
+                    if (uploadError) {
+                        profileStatus.textContent = `Error uploading picture: ${uploadError.message}`;
+                        console.error(uploadError);
+                        return;
+                    }
+                    pfpUrl = `${SUPABASE_URL}/storage/v1/object/public/raw_files/${pfpPath}`;
+                }
+
+                const { error: profileError } = await supabase
+                    .from('profiles')
+                    .insert({ 
+                        id: user.id, 
+                        username: username,
+                        nickname: nickname,
+                        profile_picture_url: pfpUrl
+                    });
+
+                if (profileError) {
+                    profileStatus.textContent = `Error creating profile: ${profileError.message}`;
+                    console.error(profileError);
+                    if (profileError.code === '23505') {
+                        profileStatus.textContent = 'Username already taken. Please choose a different one.';
+                    }
+                } else {
+                    profileStatus.textContent = 'Profile created successfully!';
+                    checkUserProfile((await supabase.auth.getSession()).data.session);
+                }
+            });
+
+            myProfileBtn.addEventListener('click', async () => {
+                const user = (await supabase.auth.getSession()).data.session.user;
+                const { data: profile, error } = await supabase
+                    .from('profiles')
+                    .select('username')
+                    .eq('id', user.id)
+                    .single();
+                if (profile) {
+                    window.location.hash = `profile:${profile.username}`;
+                }
+            });
+
+            uploadForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                uploadStatus.textContent = 'Uploading...';
+
+                const file = fileInput.files[0];
+                if (!file) {
+                    uploadStatus.textContent = 'Please select a file to upload.';
+                    return;
+                }
+                
+                const user = (await supabase.auth.getSession()).data.session.user;
+                const filePath = `files/${user.id}/${Date.now()}_${file.name}`;
+                
+                const { data, error } = await supabase.storage
+                    .from('raw_files')
+                    .upload(filePath, file, {
+                        cacheControl: '3600',
+                        upsert: false
+                    });
+
+                if (error) {
+                    uploadStatus.textContent = `Upload failed: ${error.message}`;
+                    console.error('Upload error:', error);
+                    return;
+                }
+                
+                uploadStatus.textContent = 'File uploaded successfully! Adding to database...';
+                
+                const { error: dbError } = await supabase
+                    .from('files')
+                    .insert([
+                        {
+                            file_path: filePath,
+                            owner_id: user.id
+                        }
+                    ]);
+
+                if (dbError) {
+                    console.error('Database insert error:', dbError);
+                    uploadStatus.textContent = `Upload complete, but failed to record in database: ${dbError.message}`;
+                } else {
+                    uploadStatus.textContent = 'File uploaded and recorded successfully!';
+                }
+                
+                fetchFiles();
+            });
+            
+            downloadBtn.addEventListener('click', () => {
+                if (currentFileUrl) {
+                    window.open(currentFileUrl, '_blank');
+                }
+            });
+            
+            shareBtn.addEventListener('click', () => {
+                const shareLink = window.location.href;
+                navigator.clipboard.writeText(shareLink).then(() => {
+                    alert('Share link copied to clipboard!');
+                }).catch(err => {
+                    console.error('Could not copy text: ', err);
+                });
+            });
+        })();
+    </script>
+</body>
+</html>
