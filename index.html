@@ -90,15 +90,23 @@
             padding: 2rem;
             border-radius: 8px;
         }
-        #file-content {
+        #file-content-embed {
             width: 100%;
-            height: 400px;
+            max-height: 600px;
             border: 1px solid #ccc;
             overflow: auto;
-            white-space: pre-wrap;
             background-color: #f8f9fa;
             padding: 1rem;
             font-family: monospace;
+            text-align: center;
+        }
+        #file-content-embed img,
+        #file-content-embed video,
+        #file-content-embed audio,
+        #file-content-embed iframe {
+            max-width: 100%;
+            height: auto;
+            border: none;
         }
         #file-view-buttons {
             display: flex;
@@ -149,7 +157,7 @@
         
         <div id="file-view-container" class="hidden">
             <h2 id="file-view-title"></h2>
-            <pre id="file-content"></pre>
+            <div id="file-content-embed"></div>
             <div id="file-view-buttons">
                 <button id="download-btn">Download</button>
                 <button id="share-btn">Share Link</button>
@@ -176,14 +184,28 @@
         const uploadStatus = document.getElementById('upload-status');
         const fileListContainer = document.getElementById('file-list');
         
-        // New UI elements
         const fileViewContainer = document.getElementById('file-view-container');
         const fileViewTitle = document.getElementById('file-view-title');
-        const fileContent = document.getElementById('file-content');
+        const fileContentEmbed = document.getElementById('file-content-embed');
         const downloadBtn = document.getElementById('download-btn');
         const shareBtn = document.getElementById('share-btn');
         
-        let currentFileUrl = ''; // Store the URL of the currently viewed file
+        let currentFileUrl = '';
+        
+        const getFileType = (filename) => {
+            const extension = filename.split('.').pop().toLowerCase();
+            const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp'];
+            const videoExtensions = ['mp4', 'webm', 'ogg', 'mov'];
+            const audioExtensions = ['mp3', 'wav', 'ogg', 'aac'];
+            const pdfExtensions = ['pdf'];
+
+            if (imageExtensions.includes(extension)) return 'image';
+            if (videoExtensions.includes(extension)) return 'video';
+            if (audioExtensions.includes(extension)) return 'audio';
+            if (pdfExtensions.includes(extension)) return 'pdf';
+
+            return 'text'; // Default to text for anything else
+        };
 
         const updateUI = (session) => {
             if (session) {
@@ -200,20 +222,49 @@
             fileViewTitle.textContent = filename;
             currentFileUrl = fileURL;
             
-            // Hide other content and show file view
+            // Clear previous content
+            fileContentEmbed.innerHTML = '';
+            
             fileListContainer.classList.add('hidden');
             fileViewContainer.classList.remove('hidden');
+
+            const fileType = getFileType(filename);
             
-            // Fetch and display the file content
-            fetch(fileURL)
-                .then(response => response.text())
-                .then(text => {
-                    fileContent.textContent = text;
-                })
-                .catch(error => {
-                    fileContent.textContent = `Error loading file: ${error.message}`;
-                    console.error('Error fetching file content:', error);
-                });
+            if (fileType === 'image') {
+                const img = document.createElement('img');
+                img.src = fileURL;
+                img.alt = filename;
+                fileContentEmbed.appendChild(img);
+            } else if (fileType === 'video') {
+                const video = document.createElement('video');
+                video.src = fileURL;
+                video.controls = true;
+                video.autoplay = false;
+                fileContentEmbed.appendChild(video);
+            } else if (fileType === 'audio') {
+                const audio = document.createElement('audio');
+                audio.src = fileURL;
+                audio.controls = true;
+                audio.autoplay = false;
+                fileContentEmbed.appendChild(audio);
+            } else if (fileType === 'pdf') {
+                 const iframe = document.createElement('iframe');
+                 iframe.src = fileURL;
+                 iframe.width = '100%';
+                 iframe.height = '600px';
+                 fileContentEmbed.appendChild(iframe);
+            } else { // Default to text
+                fileContentEmbed.style.whiteSpace = 'pre-wrap';
+                fetch(fileURL)
+                    .then(response => response.text())
+                    .then(text => {
+                        fileContentEmbed.textContent = text;
+                    })
+                    .catch(error => {
+                        fileContentEmbed.textContent = `Error loading file: ${error.message}`;
+                        console.error('Error fetching file content:', error);
+                    });
+            }
         };
         
         const fetchFiles = async () => {
@@ -239,9 +290,8 @@
 
             data.forEach(file => {
                 const { file_path } = file;
-                const fileURL = `${SUPABASE_URL}/storage/v1/object/public/raw_files/${file_path}`;
                 const filename = file_path.split('/').pop();
-
+                
                 const link = document.createElement('a');
                 link.href = `#${file_path}`; 
                 link.textContent = filename;
@@ -260,17 +310,15 @@
             const filePath = window.location.hash.substring(1);
             if (filePath) {
                 const fileURL = `${SUPABASE_URL}/storage/v1/object/public/raw_files/${filePath}`;
-                // Check if the file exists before showing the UI
                 try {
                     const response = await fetch(fileURL, { method: 'HEAD' });
                     if (response.ok) {
                         showFileView(filePath, fileURL);
                     } else {
                         console.error('File not found:', filePath);
-                        // Handle the case where the file doesn't exist
                         fileViewContainer.classList.add('hidden');
                         fileListContainer.classList.remove('hidden');
-                        window.location.hash = ''; // Clear the hash
+                        window.location.hash = '';
                     }
                 } catch (error) {
                     console.error('Error checking file existence:', error);
@@ -279,7 +327,6 @@
                     window.location.hash = '';
                 }
             } else {
-                // If there's no hash, show the file list and hide the file view
                 fileViewContainer.classList.add('hidden');
                 fileListContainer.classList.remove('hidden');
             }
@@ -289,7 +336,7 @@
             const { data: { session } } = await supabase.auth.getSession();
             updateUI(session);
             fetchFiles();
-            handleHashChange(); // Check hash on page load
+            handleHashChange();
 
             supabase.auth.onAuthStateChange((event, session) => {
                 updateUI(session);
@@ -394,7 +441,6 @@
                 fetchFiles();
             });
             
-            // Event listeners for the new UI buttons
             downloadBtn.addEventListener('click', () => {
                 if (currentFileUrl) {
                     window.open(currentFileUrl, '_blank');
