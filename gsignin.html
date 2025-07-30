@@ -134,6 +134,17 @@
             width: 20px;
             height: 20px;
         }
+        .link-button {
+            background: none;
+            color: #007bff;
+            text-decoration: underline;
+            padding: 0;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+        .link-button:hover {
+            color: #0056b3;
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -154,21 +165,48 @@
             <p id="upload-status"></p>
         </div>
 
-        <div id="auth-container">
-            <h3>Sign Up or Log In</h3>
-            <form id="auth-form">
-                <input type="email" id="email-input" placeholder="Email" required>
-                <input type="password" id="password-input" placeholder="Password" required>
-                <div id="auth-buttons">
-                    <button type="button" id="signup-btn">Sign Up</button>
-                    <button type="button" id="signin-btn">Log In</button>
-                </div>
-            </form>
+        <div id="auth-flow-container">
+            <div id="auth-form-section">
+                <h3>Sign Up or Log In</h3>
+                <form id="auth-form">
+                    <input type="email" id="email-input" placeholder="Email" required>
+                    <input type="password" id="password-input" placeholder="Password" required>
+                    <div id="auth-buttons">
+                        <button type="button" id="signup-btn">Sign Up</button>
+                        <button type="button" id="signin-btn">Log In</button>
+                    </div>
+                </form>
+                <button type="button" id="google-signin-btn" style="margin-top: 1rem;">
+                    <img src="https://www.svgrepo.com/show/355037/google.svg" alt="Google logo">
+                    Sign in with Google
+                </button>
+                <button type="button" id="forgot-password-btn" class="link-button">Forgot your password?</button>
+            </div>
+
+            <div id="password-reset-section" class="hidden">
+                <h3>Reset Your Password</h3>
+                <form id="password-reset-form">
+                    <input type="password" id="new-password-input" placeholder="New Password" required>
+                    <button type="submit" id="update-password-btn">Update Password</button>
+                </form>
+            </div>
+
+            <div id="request-reset-section" class="hidden">
+                <h3>Request Password Reset</h3>
+                <p>Enter your email to receive a password reset link.</p>
+                <form id="request-reset-form">
+                    <input type="email" id="reset-email-input" placeholder="Email" required>
+                    <button type="submit">Send Reset Link</button>
+                    <button type="button" id="back-to-login-btn" class="link-button">Back to Sign In</button>
+                </form>
+            </div>
+
+            <div id="magic-link-section" class="hidden">
+                <h3>Check Your Email</h3>
+                <p id="magic-link-message">We've sent a magic link to your email address. Click the link to log in.</p>
+            </div>
+
             <p id="auth-status"></p>
-            <button id="google-signin-btn">
-                <img src="https://www.svgrepo.com/show/355037/google.svg" alt="Google logo">
-                Sign in with Google
-            </button>
         </div>
 
         <div id="file-viewer">
@@ -190,17 +228,36 @@
 
     <script>
         const SUPABASE_URL = 'https://ebpgktodtwqnnpzagqvp.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVicGdrdG9kdHdxbm5wemFncXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM3OTc5ODgsImV4cCI6MjA2OTM3Mzk4OH0.G54yMXsd8El-QOTbxdc1g8LWsPihfVLC-XgcRKizy1w';  
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVicGdrdG9kdHdxbm5wemFncXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM3OTc5ODgsImV4cCI6MjA2OTM3Mzk4OH0.G54yMXsd8El-QOTbxdc1g8LWsPihfVLC-XgcRKizy1w';
         
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        const authContainer = document.getElementById('auth-container');
+        // Define your GitHub Pages URL manually to avoid the redirect issue
+        const GITHUB_PAGES_BASE_URL = 'https://githubuser102234.github.io/MyClip';
+
+        // UI Element References
         const loggedInSection = document.getElementById('logged-in-section');
+        const authFlowContainer = document.getElementById('auth-flow-container');
+        const authFormSection = document.getElementById('auth-form-section');
+        const passwordResetSection = document.getElementById('password-reset-section');
+        const requestResetSection = document.getElementById('request-reset-section');
+        const magicLinkSection = document.getElementById('magic-link-section');
+        const magicLinkMessage = document.getElementById('magic-link-message');
+
         const emailInput = document.getElementById('email-input');
         const passwordInput = document.getElementById('password-input');
         const signupBtn = document.getElementById('signup-btn');
         const signinBtn = document.getElementById('signin-btn');
-        const googleSigninBtn = document.getElementById('google-signin-btn'); // Get the new button
+        const googleSigninBtn = document.getElementById('google-signin-btn');
+        const forgotPasswordBtn = document.getElementById('forgot-password-btn');
+        const backToLoginBtn = document.getElementById('back-to-login-btn');
+        
+        const resetEmailInput = document.getElementById('reset-email-input');
+        const requestResetForm = document.getElementById('request-reset-form');
+        
+        const newPasswordInput = document.getElementById('new-password-input');
+        const updatePasswordBtn = document.getElementById('update-password-btn');
+        
         const authStatus = document.getElementById('auth-status');
         const logoutBtn = document.getElementById('logout-btn');
         const uploadForm = document.getElementById('upload-form');
@@ -216,6 +273,16 @@
         
         let currentFileUrl = '';
         
+        // Helper function to show a specific auth section
+        const showAuthSection = (sectionId) => {
+            const sections = [authFormSection, passwordResetSection, requestResetSection, magicLinkSection];
+            sections.forEach(section => {
+                section.classList.add('hidden');
+            });
+            document.getElementById(sectionId).classList.remove('hidden');
+            authStatus.textContent = ''; // Clear status message
+        };
+
         const getFileType = (filename) => {
             const extension = filename.split('.').pop().toLowerCase();
             const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp'];
@@ -233,10 +300,14 @@
 
         const updateUI = (session) => {
             if (session) {
-                authContainer.classList.add('hidden');
+                authFlowContainer.classList.add('hidden');
                 loggedInSection.classList.remove('hidden');
+                // Clean up the URL hash after a successful login
+                if (window.location.hash.includes('access_token')) {
+                    window.location.hash = '';
+                }
             } else {
-                authContainer.classList.remove('hidden');
+                authFlowContainer.classList.remove('hidden');
                 loggedInSection.classList.add('hidden');
             }
         };
@@ -332,6 +403,22 @@
 
         const handleHashChange = async () => {
             const filePath = window.location.hash.substring(1);
+            
+            // Check for auth-related hashes first
+            const urlParams = new URLSearchParams(window.location.hash.substring(1));
+            const type = urlParams.get('type');
+            if (type) {
+                // Handle different auth actions
+                if (type === 'recovery') {
+                    showAuthSection('password-reset-section');
+                } else if (type === 'signup') {
+                    showAuthSection('magic-link-section');
+                    magicLinkMessage.textContent = 'Sign up successful! Please check your email to confirm your account and log in.';
+                }
+                return;
+            }
+            
+            // If no auth hash, handle file view
             if (filePath) {
                 const fileURL = `${SUPABASE_URL}/storage/v1/object/public/raw_files/${filePath}`;
                 try {
@@ -377,13 +464,18 @@
                 const { error } = await supabase.auth.signUp({
                     email,
                     password,
+                    options: {
+                        // Correctly specify the full redirect URL for GitHub Pages
+                        redirectTo: `${GITHUB_PAGES_BASE_URL}/#type=signup`
+                    }
                 });
 
                 if (error) {
                     authStatus.textContent = `Sign Up Error: ${error.message}`;
                     console.error('Sign Up Error:', error);
                 } else {
-                    authStatus.textContent = 'Sign up successful! Check your email for a confirmation link.';
+                    showAuthSection('magic-link-section');
+                    magicLinkMessage.textContent = 'Sign up successful! Check your email for a confirmation link.';
                     emailInput.value = '';
                     passwordInput.value = '';
                 }
@@ -408,19 +500,65 @@
                     passwordInput.value = '';
                 }
             });
+
+            forgotPasswordBtn.addEventListener('click', () => {
+                showAuthSection('request-reset-section');
+            });
+
+            backToLoginBtn.addEventListener('click', () => {
+                showAuthSection('auth-form-section');
+            });
+            
+            requestResetForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = resetEmailInput.value;
+                authStatus.textContent = 'Sending reset link...';
+                const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                    // Correctly specify the full redirect URL for GitHub Pages
+                    redirectTo: `${GITHUB_PAGES_BASE_URL}/#type=recovery`
+                });
+                if (error) {
+                    authStatus.textContent = `Error: ${error.message}`;
+                } else {
+                    authStatus.textContent = 'Password reset link sent! Check your email.';
+                }
+            });
+
+            // Update Password
+            updatePasswordBtn.addEventListener('click', async () => {
+                const newPassword = newPasswordInput.value;
+                if (!newPassword) {
+                    authStatus.textContent = 'Please enter a new password.';
+                    return;
+                }
+                authStatus.textContent = 'Updating password...';
+                const { error } = await supabase.auth.updateUser({ password: newPassword });
+                if (error) {
+                    authStatus.textContent = `Error updating password: ${error.message}`;
+                } else {
+                    authStatus.textContent = 'Password updated successfully!';
+                    newPasswordInput.value = '';
+                    setTimeout(() => {
+                        window.location.hash = '';
+                    }, 3000);
+                }
+            });
             
             // New event listener for the Google sign-in button
             googleSigninBtn.addEventListener('click', async () => {
                 authStatus.textContent = 'Redirecting to Google...';
                 const { error } = await supabase.auth.signInWithOAuth({
                     provider: 'google',
+                    options: {
+                        // Correctly specify the full redirect URL for GitHub Pages
+                        redirectTo: GITHUB_PAGES_BASE_URL
+                    }
                 });
                 
                 if (error) {
                     authStatus.textContent = `Google Sign-in Error: ${error.message}`;
                     console.error('Google Sign-in Error:', error);
                 }
-                // The page will redirect to the Google sign-in flow, so no success message is needed here.
             });
 
             logoutBtn.addEventListener('click', async () => {
