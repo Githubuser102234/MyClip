@@ -79,6 +79,34 @@
         .hidden {
             display: none;
         }
+        /* New styles for the file view UI */
+        #file-view-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 2rem;
+            border: 1px solid #ddd;
+            padding: 2rem;
+            border-radius: 8px;
+        }
+        #file-content {
+            width: 100%;
+            height: 400px;
+            border: 1px solid #ccc;
+            overflow: auto;
+            white-space: pre-wrap;
+            background-color: #f8f9fa;
+            padding: 1rem;
+            font-family: monospace;
+        }
+        #file-view-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+        #file-view-buttons button {
+            flex: 1;
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -118,6 +146,15 @@
                 <p>Loading files...</p>
             </div>
         </div>
+        
+        <div id="file-view-container" class="hidden">
+            <h2 id="file-view-title"></h2>
+            <pre id="file-content"></pre>
+            <div id="file-view-buttons">
+                <button id="download-btn">Download</button>
+                <button id="share-btn">Share Link</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -138,6 +175,15 @@
         const fileInput = document.getElementById('file-input');
         const uploadStatus = document.getElementById('upload-status');
         const fileListContainer = document.getElementById('file-list');
+        
+        // New UI elements
+        const fileViewContainer = document.getElementById('file-view-container');
+        const fileViewTitle = document.getElementById('file-view-title');
+        const fileContent = document.getElementById('file-content');
+        const downloadBtn = document.getElementById('download-btn');
+        const shareBtn = document.getElementById('share-btn');
+        
+        let currentFileUrl = ''; // Store the URL of the currently viewed file
 
         const updateUI = (session) => {
             if (session) {
@@ -149,6 +195,27 @@
             }
         };
 
+        const showFileView = (filePath, fileURL) => {
+            const filename = filePath.split('/').pop();
+            fileViewTitle.textContent = filename;
+            currentFileUrl = fileURL;
+            
+            // Hide other content and show file view
+            fileListContainer.classList.add('hidden');
+            fileViewContainer.classList.remove('hidden');
+            
+            // Fetch and display the file content
+            fetch(fileURL)
+                .then(response => response.text())
+                .then(text => {
+                    fileContent.textContent = text;
+                })
+                .catch(error => {
+                    fileContent.textContent = `Error loading file: ${error.message}`;
+                    console.error('Error fetching file content:', error);
+                });
+        };
+        
         const fetchFiles = async () => {
             fileListContainer.innerHTML = '';
             fileListContainer.textContent = 'Fetching files...';
@@ -172,33 +239,64 @@
 
             data.forEach(file => {
                 const { file_path } = file;
+                const fileURL = `${SUPABASE_URL}/storage/v1/object/public/raw_files/${file_path}`;
                 const filename = file_path.split('/').pop();
 
                 const link = document.createElement('a');
-                // Change the href to a hash link with the file path
                 link.href = `#${file_path}`; 
                 link.textContent = filename;
                 link.className = 'file-item';
 
-                // Add a click event listener to handle the download
                 link.addEventListener('click', (e) => {
-                    e.preventDefault(); // Prevent the default link behavior
-                    window.open(`${SUPABASE_URL}/storage/v1/object/public/raw_files/${file_path}`, '_blank');
+                    e.preventDefault(); 
+                    window.location.hash = file_path;
                 });
 
                 fileListContainer.appendChild(link);
             });
         };
 
+        const handleHashChange = async () => {
+            const filePath = window.location.hash.substring(1);
+            if (filePath) {
+                const fileURL = `${SUPABASE_URL}/storage/v1/object/public/raw_files/${filePath}`;
+                // Check if the file exists before showing the UI
+                try {
+                    const response = await fetch(fileURL, { method: 'HEAD' });
+                    if (response.ok) {
+                        showFileView(filePath, fileURL);
+                    } else {
+                        console.error('File not found:', filePath);
+                        // Handle the case where the file doesn't exist
+                        fileViewContainer.classList.add('hidden');
+                        fileListContainer.classList.remove('hidden');
+                        window.location.hash = ''; // Clear the hash
+                    }
+                } catch (error) {
+                    console.error('Error checking file existence:', error);
+                    fileViewContainer.classList.add('hidden');
+                    fileListContainer.classList.remove('hidden');
+                    window.location.hash = '';
+                }
+            } else {
+                // If there's no hash, show the file list and hide the file view
+                fileViewContainer.classList.add('hidden');
+                fileListContainer.classList.remove('hidden');
+            }
+        };
+
         (async () => {
             const { data: { session } } = await supabase.auth.getSession();
             updateUI(session);
             fetchFiles();
+            handleHashChange(); // Check hash on page load
 
             supabase.auth.onAuthStateChange((event, session) => {
                 updateUI(session);
                 fetchFiles();
             });
+            
+            window.addEventListener('hashchange', handleHashChange);
 
             signupBtn.addEventListener('click', async () => {
                 const email = emailInput.value;
@@ -295,6 +393,23 @@
                 
                 fetchFiles();
             });
+            
+            // Event listeners for the new UI buttons
+            downloadBtn.addEventListener('click', () => {
+                if (currentFileUrl) {
+                    window.open(currentFileUrl, '_blank');
+                }
+            });
+            
+            shareBtn.addEventListener('click', () => {
+                const shareLink = window.location.href;
+                navigator.clipboard.writeText(shareLink).then(() => {
+                    alert('Share link copied to clipboard!');
+                }).catch(err => {
+                    console.error('Could not copy text: ', err);
+                });
+            });
+            
         })();
     </script>
 </body>
