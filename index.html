@@ -56,6 +56,11 @@
             background: #e9ecef;
             border-radius: 4px;
             word-wrap: break-word;
+            text-decoration: none;
+            color: #007bff;
+        }
+        .file-item:hover {
+            background: #d4d8db;
         }
         #auth-container {
             text-align: center;
@@ -139,109 +144,11 @@
             }
         };
 
-        // Handle initial session and listen for auth changes
-        const { data: { session } } = await supabase.auth.getSession();
-        updateUI(session);
-
-        supabase.auth.onAuthStateChange((event, session) => {
-            updateUI(session);
-        });
-
-        // Handle Sign Up / Log In
-        authForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = emailInput.value;
-            const password = passwordInput.value;
-            authStatus.textContent = 'Processing...';
-
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email: email,
-                password: password,
-            });
-
-            if (error) {
-                if (error.message.includes('No user with that email')) {
-                     // If user doesn't exist, try to sign them up
-                     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-                        email: email,
-                        password: password,
-                     });
-
-                     if (signUpError) {
-                        authStatus.textContent = `Sign Up Error: ${signUpError.message}`;
-                     } else {
-                        authStatus.textContent = 'Sign up successful! Check your email for a confirmation link.';
-                     }
-                } else {
-                    authStatus.textContent = `Error: ${error.message}`;
-                }
-            } else {
-                authStatus.textContent = 'Logged in successfully!';
-                emailInput.value = '';
-                passwordInput.value = '';
-            }
-        });
-
-        // Handle Logout
-        logoutBtn.addEventListener('click', async () => {
-            const { error } = await supabase.auth.signOut();
-            if (error) {
-                console.error('Logout error:', error);
-            }
-        });
-
-        // Handle File Upload
-        uploadForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            uploadStatus.textContent = 'Uploading...';
-
-            const file = fileInput.files[0];
-            if (!file) {
-                uploadStatus.textContent = 'Please select a file to upload.';
-                return;
-            }
-            
-            const user = (await supabase.auth.getSession()).data.session.user;
-            const filePath = `${user.id}/${Date.now()}_${file.name}`;
-
-            const { data, error } = await supabase.storage
-                .from('raw_files')
-                .upload(filePath, file, {
-                    cacheControl: '3600',
-                    upsert: false
-                });
-
-            if (error) {
-                uploadStatus.textContent = `Upload failed: ${error.message}`;
-                console.error('Upload error:', error);
-            } else {
-                uploadStatus.textContent = 'File uploaded successfully!';
-                
-                // Store file metadata in the database
-                const { error: dbError } = await supabase
-                    .from('files')
-                    .insert([
-                        {
-                            file_path: filePath,
-                            owner_id: user.id
-                        }
-                    ]);
-
-                if (dbError) {
-                    console.error('Database insert error:', dbError);
-                }
-                
-                // Refresh the file list
-                fetchFiles();
-            }
-        });
-
         // Function to fetch and display files
         const fetchFiles = async () => {
             fileListContainer.innerHTML = '';
             fileListContainer.textContent = 'Fetching files...';
 
-            // Fetch public file information from the 'files' table
             const { data, error } = await supabase
                 .from('files')
                 .select('file_path');
@@ -257,7 +164,6 @@
                 return;
             }
 
-            // Generate links for each file
             data.forEach(file => {
                 const { file_path } = file;
                 const fileURL = `${SUPABASE_URL}/storage/v1/object/public/raw_files/${file_path}`;
@@ -273,9 +179,105 @@
             });
         };
 
-        // Fetch files when the page loads
-        fetchFiles();
+        // Immediately-invoked async function to handle initial setup
+        (async () => {
+            // Handle initial session and listen for auth changes
+            const { data: { session } } = await supabase.auth.getSession();
+            updateUI(session);
 
+            supabase.auth.onAuthStateChange((event, session) => {
+                updateUI(session);
+            });
+
+            // Handle Sign Up / Log In
+            authForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = emailInput.value;
+                const password = passwordInput.value;
+                authStatus.textContent = 'Processing...';
+
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password,
+                });
+
+                if (error) {
+                    if (error.message.includes('Invalid login credentials')) {
+                        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                            email: email,
+                            password: password,
+                        });
+
+                        if (signUpError) {
+                            authStatus.textContent = `Sign Up Error: ${signUpError.message}`;
+                        } else {
+                            authStatus.textContent = 'Sign up successful! Check your email for a confirmation link.';
+                        }
+                    } else {
+                        authStatus.textContent = `Error: ${error.message}`;
+                    }
+                } else {
+                    authStatus.textContent = 'Logged in successfully!';
+                    emailInput.value = '';
+                    passwordInput.value = '';
+                }
+            });
+
+            // Handle Logout
+            logoutBtn.addEventListener('click', async () => {
+                const { error } = await supabase.auth.signOut();
+                if (error) {
+                    console.error('Logout error:', error);
+                }
+            });
+
+            // Handle File Upload
+            uploadForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                uploadStatus.textContent = 'Uploading...';
+
+                const file = fileInput.files[0];
+                if (!file) {
+                    uploadStatus.textContent = 'Please select a file to upload.';
+                    return;
+                }
+                
+                const user = (await supabase.auth.getSession()).data.session.user;
+                const filePath = `${user.id}/${Date.now()}_${file.name}`;
+
+                const { data, error } = await supabase.storage
+                    .from('raw_files')
+                    .upload(filePath, file, {
+                        cacheControl: '3600',
+                        upsert: false
+                    });
+
+                if (error) {
+                    uploadStatus.textContent = `Upload failed: ${error.message}`;
+                    console.error('Upload error:', error);
+                } else {
+                    uploadStatus.textContent = 'File uploaded successfully!';
+                    
+                    const { error: dbError } = await supabase
+                        .from('files')
+                        .insert([
+                            {
+                                file_path: filePath,
+                                owner_id: user.id
+                            }
+                        ]);
+
+                    if (dbError) {
+                        console.error('Database insert error:', dbError);
+                    }
+                    
+                    fetchFiles();
+                }
+            });
+
+            // Fetch files when the page loads
+            fetchFiles();
+        })();
     </script>
 </body>
 </html>
