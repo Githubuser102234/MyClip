@@ -65,8 +65,12 @@
         #auth-container {
             text-align: center;
         }
-        #auth-container button {
-            margin-top: 1rem;
+        #auth-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        #auth-buttons button {
+            flex: 1;
         }
         #logout-btn {
             background-color: #dc3545;
@@ -96,11 +100,14 @@
         </div>
 
         <div id="auth-container">
-            <h3>Sign Up or Log In to Share</h3>
+            <h3>Sign Up or Log In</h3>
             <form id="auth-form">
                 <input type="email" id="email-input" placeholder="Email" required>
                 <input type="password" id="password-input" placeholder="Password" required>
-                <button type="submit" id="auth-btn">Sign Up / Log In</button>
+                <div id="auth-buttons">
+                    <button type="button" id="signup-btn">Sign Up</button>
+                    <button type="button" id="signin-btn">Log In</button>
+                </div>
             </form>
             <p id="auth-status"></p>
         </div>
@@ -114,18 +121,17 @@
     </div>
 
     <script>
-        // Supabase Client Setup
         const SUPABASE_URL = 'https://ebpgktodtwqnnpzagqvp.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVicGdrdG9kdHdxbm5wemFncXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM3OTc5ODgsImV4cCI6MjA2OTM3Mzk4OH0.G54yMXsd8El-QOTbxdc1g8LWsPihfVLC-XgcRKizy1w';  
         
         const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // DOM Elements
         const authContainer = document.getElementById('auth-container');
         const loggedInSection = document.getElementById('logged-in-section');
-        const authForm = document.getElementById('auth-form');
         const emailInput = document.getElementById('email-input');
         const passwordInput = document.getElementById('password-input');
+        const signupBtn = document.getElementById('signup-btn');
+        const signinBtn = document.getElementById('signin-btn');
         const authStatus = document.getElementById('auth-status');
         const logoutBtn = document.getElementById('logout-btn');
         const uploadForm = document.getElementById('upload-form');
@@ -133,7 +139,6 @@
         const uploadStatus = document.getElementById('upload-status');
         const fileListContainer = document.getElementById('file-list');
 
-        // Function to update UI based on user session
         const updateUI = (session) => {
             if (session) {
                 authContainer.classList.add('hidden');
@@ -144,21 +149,22 @@
             }
         };
 
-        // Function to fetch and display files
         const fetchFiles = async () => {
             fileListContainer.innerHTML = '';
             fileListContainer.textContent = 'Fetching files...';
 
+            console.log('Attempting to fetch files...');
             const { data, error } = await supabase
                 .from('files')
                 .select('file_path');
 
             if (error) {
                 console.error('Error fetching files:', error);
-                fileListContainer.textContent = 'Error fetching files.';
+                fileListContainer.textContent = `Error fetching files: ${error.message}. Please check RLS policies.`;
                 return;
             }
 
+            console.log('Files fetched:', data);
             if (data.length === 0) {
                 fileListContainer.textContent = 'No files have been shared yet.';
                 return;
@@ -179,43 +185,49 @@
             });
         };
 
-        // Immediately-invoked async function to handle initial setup
         (async () => {
-            // Handle initial session and listen for auth changes
             const { data: { session } } = await supabase.auth.getSession();
             updateUI(session);
+            fetchFiles();
 
             supabase.auth.onAuthStateChange((event, session) => {
                 updateUI(session);
+                fetchFiles();
             });
 
-            // Handle Sign Up / Log In
-            authForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
+            signupBtn.addEventListener('click', async () => {
                 const email = emailInput.value;
                 const password = passwordInput.value;
-                authStatus.textContent = 'Processing...';
+                authStatus.textContent = 'Signing up...';
 
-                const { data, error } = await supabase.auth.signInWithPassword({
-                    email: email,
-                    password: password,
+                const { error } = await supabase.auth.signUp({
+                    email,
+                    password,
                 });
 
                 if (error) {
-                    if (error.message.includes('Invalid login credentials')) {
-                        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-                            email: email,
-                            password: password,
-                        });
+                    authStatus.textContent = `Sign Up Error: ${error.message}`;
+                    console.error('Sign Up Error:', error);
+                } else {
+                    authStatus.textContent = 'Sign up successful! Check your email for a confirmation link.';
+                    emailInput.value = '';
+                    passwordInput.value = '';
+                }
+            });
 
-                        if (signUpError) {
-                            authStatus.textContent = `Sign Up Error: ${signUpError.message}`;
-                        } else {
-                            authStatus.textContent = 'Sign up successful! Check your email for a confirmation link.';
-                        }
-                    } else {
-                        authStatus.textContent = `Error: ${error.message}`;
-                    }
+            signinBtn.addEventListener('click', async () => {
+                const email = emailInput.value;
+                const password = passwordInput.value;
+                authStatus.textContent = 'Logging in...';
+
+                const { error } = await supabase.auth.signInWithPassword({
+                    email,
+                    password,
+                });
+
+                if (error) {
+                    authStatus.textContent = `Log In Error: ${error.message}`;
+                    console.error('Log In Error:', error);
                 } else {
                     authStatus.textContent = 'Logged in successfully!';
                     emailInput.value = '';
@@ -223,7 +235,6 @@
                 }
             });
 
-            // Handle Logout
             logoutBtn.addEventListener('click', async () => {
                 const { error } = await supabase.auth.signOut();
                 if (error) {
@@ -231,7 +242,6 @@
                 }
             });
 
-            // Handle File Upload
             uploadForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 uploadStatus.textContent = 'Uploading...';
@@ -244,6 +254,7 @@
                 
                 const user = (await supabase.auth.getSession()).data.session.user;
                 const filePath = `${user.id}/${Date.now()}_${file.name}`;
+                console.log('Uploading file with path:', filePath);
 
                 const { data, error } = await supabase.storage
                     .from('raw_files')
@@ -255,28 +266,30 @@
                 if (error) {
                     uploadStatus.textContent = `Upload failed: ${error.message}`;
                     console.error('Upload error:', error);
-                } else {
-                    uploadStatus.textContent = 'File uploaded successfully!';
-                    
-                    const { error: dbError } = await supabase
-                        .from('files')
-                        .insert([
-                            {
-                                file_path: filePath,
-                                owner_id: user.id
-                            }
-                        ]);
-
-                    if (dbError) {
-                        console.error('Database insert error:', dbError);
-                    }
-                    
-                    fetchFiles();
+                    return;
                 }
-            });
 
-            // Fetch files when the page loads
-            fetchFiles();
+                console.log('File uploaded successfully to storage bucket:', data);
+                uploadStatus.textContent = 'File uploaded successfully! Adding to database...';
+                
+                const { error: dbError } = await supabase
+                    .from('files')
+                    .insert([
+                        {
+                            file_path: filePath,
+                            owner_id: user.id
+                        }
+                    ]);
+
+                if (dbError) {
+                    console.error('Database insert error:', dbError);
+                    uploadStatus.textContent = `Upload complete, but failed to record in database: ${dbError.message}`;
+                } else {
+                    uploadStatus.textContent = 'File uploaded and recorded successfully!';
+                }
+                
+                fetchFiles();
+            });
         })();
     </script>
 </body>
